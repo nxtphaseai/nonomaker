@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Upload, Save, FolderOpen } from 'lucide-react';
 
@@ -10,17 +10,23 @@ const GRID_PRESETS = [
   { label: '20×32', width: 32, height: 20 }
 ];
 
-function createEmptyGrid(width, height) {
-  return Array(height).fill().map(() => Array(width).fill(false));
+function createEmptyGrid(width: number, height: number): boolean[][] {
+  return Array.from({ length: height }, () => 
+    Array.from({ length: width }, () => false)
+  );
+}
+
+interface GridStates {
+  [key: number]: boolean[][];
 }
 
 const NonogramEditor = () => {
   const [selectedPreset, setSelectedPreset] = useState(3);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [originalImageData, setOriginalImageData] = useState(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [originalImageData, setOriginalImageData] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [gridStates, setGridStates] = useState(() => {
-    const initialStates = {};
+  const [gridStates, setGridStates] = useState<GridStates>(() => {
+    const initialStates: GridStates = {};
     GRID_PRESETS.forEach((preset, index) => {
       initialStates[index] = createEmptyGrid(preset.width, preset.height);
     });
@@ -30,12 +36,13 @@ const NonogramEditor = () => {
   const currentPreset = GRID_PRESETS[selectedPreset];
   const grid = gridStates[selectedPreset];
 
-  const processImageToGrid = async (imageData, width, height) => {
+  const processImageToGrid = async (imageData: string, width: number, height: number) => {
     const img = new Image();
-    return new Promise((resolve, reject) => {
+    return new Promise<boolean[][]>((resolve, reject) => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not get 2D context');
         
         canvas.width = width;
         canvas.height = height;
@@ -63,15 +70,18 @@ const NonogramEditor = () => {
     });
   };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file || !file.type.startsWith('image/')) return;
 
     setProcessing(true);
     try {
       const reader = new FileReader();
-      const imageData = await new Promise((resolve, reject) => {
-        reader.onload = (e) => resolve(e.target.result);
+      const imageData = await new Promise<string>((resolve, reject) => {
+        reader.onload = (e) => {
+          if (!e.target) reject(new Error('No target'));
+          resolve(e.target?.result as string);
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
@@ -89,9 +99,10 @@ const NonogramEditor = () => {
         ...prev,
         [selectedPreset]: newGrid
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error processing image:', error);
-      alert('Failed to process image. Please try again.');
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert('Failed to process image. ' + message);
     } finally {
       setProcessing(false);
     }
@@ -144,20 +155,21 @@ const NonogramEditor = () => {
       // Cleanup
       window.URL.revokeObjectURL(downloadUrl);
       console.log('URL revoked, save complete');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in save function:', error);
-      alert('Failed to save the nonogram. Error: ' + error.message);
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert('Failed to save the nonogram. ' + message);
     }
   };
 
-  const handleLoad = (event) => {
+  const handleLoad = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
-        const saveData = JSON.parse(e.target.result);
+        const saveData = JSON.parse(e.target?.result as string);
         
         // Load the preset
         if (typeof saveData.preset === 'number' && saveData.grid) {
@@ -173,9 +185,10 @@ const NonogramEditor = () => {
           setOriginalImageData(saveData.imageData);
           setImagePreview(saveData.imageData);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading file:', error);
-        alert('Failed to load the nonogram file. Please ensure it\'s a valid .nono file.');
+        const message = error instanceof Error ? error.message : 'Unknown error occurred';
+        alert('Failed to load the nonogram file. ' + message);
       }
     };
     reader.readAsText(file);
@@ -190,7 +203,7 @@ const NonogramEditor = () => {
     setOriginalImageData(null);
   };
 
-  const handlePresetChange = async (index) => {
+  const handlePresetChange = async (index: number) => {
     if (index === selectedPreset) return;
     
     // Store current grid state before switching
@@ -222,7 +235,7 @@ const NonogramEditor = () => {
     }
   };
 
-  const toggleCell = (row, col) => {
+  const toggleCell = (row: number, col: number) => {
     if (processing) return;
     
     setGridStates(prev => ({
@@ -237,7 +250,7 @@ const NonogramEditor = () => {
     }));
   };
 
-  const getRowHints = (row) => {
+  const getRowHints = (row: number) => {
     if (!grid || !grid[row]) return [0];
     
     const hints = [];
@@ -255,7 +268,7 @@ const NonogramEditor = () => {
     return hints.length ? hints : [0];
   };
 
-  const getColumnHints = (col) => {
+  const getColumnHints = (col: number) => {
     if (!grid) return [0];
     
     const hints = [];
@@ -273,8 +286,8 @@ const NonogramEditor = () => {
     return hints.length ? hints : [0];
   };
 
-  const maxRowHints = Math.max(1, ...Array(currentPreset.height).fill().map((_, i) => getRowHints(i).length));
-  const maxColHints = Math.max(1, ...Array(currentPreset.width).fill().map((_, i) => getColumnHints(i).length));
+  const maxRowHints = Math.max(1, ...Array.from({ length: currentPreset.height }, (_, i) => getRowHints(i).length));
+  const maxColHints = Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length));
 
   return (
     <Card className="w-full max-w-4xl mx-auto p-4">
@@ -371,9 +384,9 @@ const NonogramEditor = () => {
               gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, 1.5rem)`
             }}
           >
-            {Array(currentPreset.height + maxColHints).fill().map((_, gridRow) => (
+            {Array.from({ length: currentPreset.height + maxColHints }).map((_, gridRow) => (
               <React.Fragment key={`row-${gridRow}`}>
-                {Array(currentPreset.width + maxRowHints).fill().map((_, gridCol) => {
+                {Array.from({ length: currentPreset.width + maxRowHints }).map((_, gridCol) => {
                   const isTopLeftCorner = gridRow < maxColHints && gridCol < maxRowHints;
                   const isColumnHint = gridRow < maxColHints && gridCol >= maxRowHints;
                   const isRowHint = gridRow >= maxColHints && gridCol < maxRowHints;
