@@ -5,9 +5,10 @@ import { Upload, Save, FolderOpen } from 'lucide-react';
 const GRID_PRESETS = [
   { label: '6×6', width: 6, height: 6 },
   { label: '12×12', width: 12, height: 12 },
-  { label: '24×24', width: 24, height: 24 },
-  { label: '32×32', width: 32, height: 32 },
-  { label: '20×32', width: 32, height: 20 }
+  { label: '50x50', width: 50, height: 50 },
+  { label: '60x60', width: 60, height: 60 },
+  { label: '100x100', width: 100, height: 100 }
+ 
 ];
 
 function createEmptyGrid(width: number, height: number): boolean[][] {
@@ -33,6 +34,21 @@ const NonogramEditor = () => {
     return initialStates;
   });
 
+  // Add new state variables for image processing parameters
+  const [imageParams, setImageParams] = useState({
+    redWeight: 0.299,
+    greenWeight: 0.587,
+    blueWeight: 0.114,
+    brightnessThreshold: 150,
+    contrast: 1.0,
+    zoom: 1.0,     // How much to zoom into the source image
+    panX: 0.5,     // Horizontal pan position (0-1)
+    panY: 0.5      // Vertical pan position (0-1)
+  });
+
+  // Add zoom state
+  const [zoom, setZoom] = useState(1.5); // 1.5rem is the current default size
+
   const currentPreset = GRID_PRESETS[selectedPreset];
   const grid = gridStates[selectedPreset];
 
@@ -46,7 +62,23 @@ const NonogramEditor = () => {
         
         canvas.width = width;
         canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
+
+        // Calculate source rectangle based on zoom and pan
+        const sourceWidth = img.width / imageParams.zoom;
+        const sourceHeight = img.height / imageParams.zoom;
+        
+        // Calculate source position based on pan values
+        const maxX = img.width - sourceWidth;
+        const maxY = img.height - sourceHeight;
+        const sourceX = maxX * imageParams.panX;
+        const sourceY = maxY * imageParams.panY;
+
+        // Draw the zoomed and panned region
+        ctx.drawImage(
+          img,
+          sourceX, sourceY, sourceWidth, sourceHeight,  // Source rectangle
+          0, 0, width, height                          // Destination rectangle
+        );
         
         const imageData = ctx.getImageData(0, 0, width, height);
         const newGrid = createEmptyGrid(width, height);
@@ -55,11 +87,11 @@ const NonogramEditor = () => {
           for (let x = 0; x < width; x++) {
             const i = (y * width + x) * 4;
             const brightness = (
-              imageData.data[i] * 0.299 + 
-              imageData.data[i + 1] * 0.587 + 
-              imageData.data[i + 2] * 0.114
-            );
-            newGrid[y][x] = brightness < 150;
+              imageData.data[i] * imageParams.redWeight + 
+              imageData.data[i + 1] * imageParams.greenWeight + 
+              imageData.data[i + 2] * imageParams.blueWeight
+            ) * imageParams.contrast;
+            newGrid[y][x] = brightness < imageParams.brightnessThreshold;
           }
         }
         
@@ -274,7 +306,7 @@ const NonogramEditor = () => {
     const hints = [];
     let count = 0;
     
-    for (let y = grid.length - 1; y >= 0; y--) {
+    for (let y = 0; y < grid.length; y++) {
       if (grid[y] && grid[y][col]) {
         count++;
       } else if (count > 0) {
@@ -289,6 +321,31 @@ const NonogramEditor = () => {
   const maxRowHints = Math.max(1, ...Array.from({ length: currentPreset.height }, (_, i) => getRowHints(i).length));
   const maxColHints = Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length));
 
+  // Add handler for parameter changes
+  const handleParamChange = async (param: string, value: number) => {
+    if (!originalImageData) return;
+    
+    const newParams = { ...imageParams, [param]: value };
+    setImageParams(newParams);
+    
+    setProcessing(true);
+    try {
+      const newGrid = await processImageToGrid(
+        originalImageData,
+        currentPreset.width,
+        currentPreset.height
+      );
+      setGridStates(prev => ({
+        ...prev,
+        [selectedPreset]: newGrid
+      }));
+    } catch (error) {
+      console.error('Error processing image:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-4xl mx-auto p-4">
       <CardHeader className="text-center">
@@ -297,6 +354,21 @@ const NonogramEditor = () => {
       </CardHeader>
       <CardContent className="p-6">
         <div className="flex flex-col gap-4">
+          {/* Add zoom control before the grid */}
+          <div className="flex items-center gap-2 bg-gray-50 p-4 rounded-lg">
+            <label className="text-sm font-medium">Zoom:</label>
+            <input
+              type="range"
+              min="0.5"
+              max="3"
+              step="0.1"
+              value={zoom}
+              onChange={(e) => setZoom(parseFloat(e.target.value))}
+              className="w-32"
+            />
+            <span className="text-sm">{Math.round(zoom * 100)}%</span>
+          </div>
+
           {/* Controls */}
           <div className="flex flex-col gap-4">
             {/* Grid Controls */}
@@ -324,6 +396,20 @@ const NonogramEditor = () => {
                 className="px-3 py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm"
               >
                 Clear Grid
+              </button>
+            </div>
+
+            {/* Text Input Area */}
+            <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
+              <textarea 
+                className="w-full p-2 border border-gray-200 rounded-md" 
+                rows={5} 
+                placeholder="Enter your text here..."
+              />
+              <button
+                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors shadow-sm"
+              >
+                Generate
               </button>
             </div>
 
@@ -376,12 +462,125 @@ const NonogramEditor = () => {
             </div>
           </div>
 
+          {/* Add image processing controls after the File Controls section */}
+          {originalImageData && (
+            <div className="flex flex-col gap-4 bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-medium">Image Processing Controls</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Add source image zoom controls at the top */}
+                <div className="flex flex-col gap-2 col-span-2">
+                  <label className="text-sm">Source Image Zoom</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="0.1"
+                      value={imageParams.zoom}
+                      onChange={(e) => handleParamChange('zoom', parseFloat(e.target.value))}
+                      className="flex-grow"
+                    />
+                    <span className="text-sm w-16">{Math.round(imageParams.zoom * 100)}%</span>
+                  </div>
+                </div>
+
+                {/* Add pan controls */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm">Horizontal Position</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={imageParams.panX}
+                    onChange={(e) => handleParamChange('panX', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm">Vertical Position</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={imageParams.panY}
+                    onChange={(e) => handleParamChange('panY', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                
+                {/* Existing controls */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm">Red Channel Weight</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={imageParams.redWeight}
+                    onChange={(e) => handleParamChange('redWeight', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm">Green Channel Weight</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={imageParams.greenWeight}
+                    onChange={(e) => handleParamChange('greenWeight', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm">Blue Channel Weight</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={imageParams.blueWeight}
+                    onChange={(e) => handleParamChange('blueWeight', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm">Brightness Threshold</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={imageParams.brightnessThreshold}
+                    onChange={(e) => handleParamChange('brightnessThreshold', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm">Contrast</label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="3"
+                    step="0.1"
+                    value={imageParams.contrast}
+                    onChange={(e) => handleParamChange('contrast', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Grid */}
           <div
             className="grid gap-0"
             style={{
-              gridTemplateColumns: `repeat(${currentPreset.width + maxRowHints}, 1.5rem)`,
-              gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, 1.5rem)`
+              gridTemplateColumns: `repeat(${currentPreset.width + maxRowHints}, ${zoom}rem)`,
+              gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, ${zoom}rem)`
             }}
           >
             {Array.from({ length: currentPreset.height + maxColHints }).map((_, gridRow) => (
@@ -395,14 +594,17 @@ const NonogramEditor = () => {
                   const gameCol = gridCol - maxRowHints;
                   
                   if (isTopLeftCorner) {
-                    return <div key={`cell-${gridRow}-${gridCol}`} className="w-6 h-6" />;
+                    return <div key={`cell-${gridRow}-${gridCol}`} style={{ width: `${zoom}rem`, height: `${zoom}rem` }} />;
                   }
                   
                   if (isColumnHint) {
                     const hints = getColumnHints(gameCol);
                     const hintIndex = hints.length - (maxColHints - gridRow);
                     return (
-                      <div key={`cell-${gridRow}-${gridCol}`} className="w-6 h-6 flex items-center justify-center">
+                      <div key={`cell-${gridRow}-${gridCol}`} 
+                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                        className="flex items-center justify-center"
+                      >
                         {hintIndex >= 0 && hintIndex < hints.length && (
                           <span className="text-xs font-mono">{hints[hintIndex]}</span>
                         )}
@@ -414,7 +616,10 @@ const NonogramEditor = () => {
                     const hints = getRowHints(gameRow);
                     const hintIndex = hints.length - (maxRowHints - gridCol);
                     return (
-                      <div key={`cell-${gridRow}-${gridCol}`} className="w-6 h-6 flex items-center justify-center">
+                      <div key={`cell-${gridRow}-${gridCol}`} 
+                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                        className="flex items-center justify-center"
+                      >
                         {hintIndex >= 0 && hintIndex < hints.length && (
                           <span className="text-xs font-mono">{hints[hintIndex]}</span>
                         )}
@@ -425,7 +630,8 @@ const NonogramEditor = () => {
                   return (
                     <div
                       key={`cell-${gridRow}-${gridCol}`}
-                      className={`w-6 h-6 border border-gray-200 cursor-pointer ${
+                      style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                      className={`border border-gray-200 cursor-pointer ${
                         grid[gameRow][gameCol] ? 'bg-black' : 'bg-white'
                       } hover:bg-gray-300`}
                       onClick={() => toggleCell(gameRow, gameCol)}
