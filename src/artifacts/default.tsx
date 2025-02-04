@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Upload, Save, FolderOpen } from 'lucide-react';
 
 const GRID_PRESETS = [
@@ -11,14 +11,14 @@ const GRID_PRESETS = [
  
 ];
 
-function createEmptyGrid(width: number, height: number): boolean[][] {
+function createEmptyGrid(width: number, height: number): string[][] {
   return Array.from({ length: height }, () => 
-    Array.from({ length: width }, () => false)
+    Array.from({ length: width }, () => 'none')
   );
 }
 
 interface GridStates {
-  [key: number]: boolean[][];
+  [key: number]: string[][];
 }
 
 // Add interface for the API response structure
@@ -73,12 +73,38 @@ const NonogramEditor = () => {
   // Add new state for generated images
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
 
+  // Add state for tracking if 'r' key is pressed
+  const [isRKeyPressed, setIsRKeyPressed] = useState(false);
+
   const currentPreset = GRID_PRESETS[selectedPreset];
   const grid = gridStates[selectedPreset];
 
+  // Add effect to handle keydown/keyup events
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'r') {
+        setIsRKeyPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'r') {
+        setIsRKeyPressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   const processImageToGrid = async (imageData: string, width: number, height: number) => {
     const img = new Image();
-    return new Promise<boolean[][]>((resolve, reject) => {
+    return new Promise<string[][]>((resolve, reject) => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -115,7 +141,7 @@ const NonogramEditor = () => {
               imageData.data[i + 1] * imageParams.greenWeight + 
               imageData.data[i + 2] * imageParams.blueWeight
             ) * imageParams.contrast;
-            newGrid[y][x] = brightness < imageParams.brightnessThreshold;
+            newGrid[y][x] = brightness < imageParams.brightnessThreshold ? 'black' : 'none';
           }
         }
         
@@ -298,9 +324,13 @@ const NonogramEditor = () => {
       ...prev,
       [selectedPreset]: prev[selectedPreset].map((rowArray, rowIndex) =>
         rowIndex === row
-          ? rowArray.map((cell, colIndex) => 
-              colIndex === col ? !cell : cell
-            )
+          ? rowArray.map((cell, colIndex) => {
+              if (colIndex !== col) return cell;
+              if (cell === 'none') {
+                return isRKeyPressed ? 'red' : 'black';
+              }
+              return 'none';
+            })
           : rowArray
       )
     }));
@@ -313,7 +343,7 @@ const NonogramEditor = () => {
     let count = 0;
     
     for (let x = 0; x < grid[row].length; x++) {
-      if (grid[row][x]) {
+      if (grid[row][x] !== 'none') {
         count++;
       } else if (count > 0) {
         hints.push(count);
@@ -331,7 +361,7 @@ const NonogramEditor = () => {
     let count = 0;
     
     for (let y = 0; y < grid.length; y++) {
-      if (grid[y] && grid[y][col]) {
+      if (grid[y] && grid[y][col] !== 'none') {
         count++;
       } else if (count > 0) {
         hints.push(count);
@@ -455,31 +485,35 @@ const NonogramEditor = () => {
     }
   };
 
+  // Add a helper function to determine hint color based on cells
+  const getHintColor = (cells: string[]) => {
+    // If all filled cells in the sequence are red, return red
+    const filledCells = cells.filter(cell => cell !== 'none');
+    return filledCells.length > 0 && filledCells.every(cell => cell === 'red') ? 'text-red-500' : 'text-black';
+  };
+
   return (
-    <Card className="w-full max-w-4xl mx-auto p-4">
+    <Card className="w-full max-w-[90vw] mx-auto p-4">
       <CardHeader className="text-center">
-        <CardTitle>Nonomaker</CardTitle>
-        <CardDescription>beta v0.3</CardDescription>
+        {/* Add logos container */}
+        <div className="flex justify-between items-center mb-4">
+          <img 
+            src="assets/logo.svg" 
+            alt="Logo" 
+            className="h-12 object-contain"
+          />
+          <img 
+            src="assets/keesing.jpg" 
+            alt="Keesing Logo" 
+            className="h-12 object-contain"
+          />
+        </div>
+       
       </CardHeader>
       <CardContent className="p-6">
-        <div className="flex flex-col gap-4">
-          {/* Add zoom control before the grid */}
-          <div className="flex items-center gap-2 bg-gray-50 p-4 rounded-lg">
-            <label className="text-sm font-medium">Zoom:</label>
-            <input
-              type="range"
-              min="0.5"
-              max="3"
-              step="0.1"
-              value={zoom}
-              onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="w-32"
-            />
-            <span className="text-sm">{Math.round(zoom * 100)}%</span>
-          </div>
-
-          {/* Controls */}
-          <div className="flex flex-col gap-4">
+        <div className="flex gap-8">
+          {/* Controls Column - 1/4 width */}
+          <div className="w-1/4 flex flex-col gap-4">
             {/* Grid Controls */}
             <div className="flex gap-2 items-center bg-gray-50 p-4 rounded-lg">
               <div className="flex gap-2">
@@ -507,6 +541,170 @@ const NonogramEditor = () => {
                 Clear Grid
               </button>
             </div>
+
+            {/* Zoom control */}
+            <div className="flex items-center gap-2 bg-gray-50 p-4 rounded-lg">
+              <label className="text-sm font-medium">Grid Zoom:</label>
+              <input
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.1"
+                value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="w-32"
+              />
+              <span className="text-sm">{Math.round(zoom * 100)}%</span>
+            </div>
+
+            {/* File Controls */}
+            <div className="flex gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="flex gap-2">
+                <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm">
+                  <Upload size={20} />
+                  Upload Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+                {imagePreview && (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-10 h-10 object-contain border rounded-md"
+                  />
+                )}
+              </div>
+
+              <div className="h-full w-px bg-gray-200" />
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSave}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors shadow-sm"
+                >
+                  <Save size={20} />
+                  Save
+                </button>
+                <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors shadow-sm">
+                  <FolderOpen size={20} />
+                  Load
+                  <input
+                    type="file"
+                    accept=".nono"
+                    onChange={handleLoad}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Image Processing Controls - Collapsible */}
+            {originalImageData && (
+              <details className="bg-gray-50 rounded-lg">
+                <summary className="p-4 font-medium cursor-pointer hover:bg-gray-100">
+                  Image Processing Controls
+                </summary>
+                <div className="p-4 pt-2 border-t border-gray-200">
+                  {/* Color Weights */}
+                  <div className="space-y-2 mb-4">
+                    <h4 className="text-sm font-medium mb-2">Color Weights</h4>
+                    <label className="text-sm">Red Weight</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.001"
+                      value={imageParams.redWeight}
+                      onChange={(e) => handleParamChange('redWeight', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <label className="text-sm">Green Weight</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.001"
+                      value={imageParams.greenWeight}
+                      onChange={(e) => handleParamChange('greenWeight', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <label className="text-sm">Blue Weight</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.001"
+                      value={imageParams.blueWeight}
+                      onChange={(e) => handleParamChange('blueWeight', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Image Adjustments */}
+                  <div className="space-y-2 mb-4">
+                    <h4 className="text-sm font-medium mb-2">Image Adjustments</h4>
+                    <label className="text-sm">Brightness Threshold</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="255"
+                      value={imageParams.brightnessThreshold}
+                      onChange={(e) => handleParamChange('brightnessThreshold', parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                    <label className="text-sm">Contrast</label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="3"
+                      step="0.1"
+                      value={imageParams.contrast}
+                      onChange={(e) => handleParamChange('contrast', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Image Position Controls */}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium mb-2">Position & Scale</h4>
+                    <label className="text-sm">Image Zoom</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="0.1"
+                      value={imageParams.zoom}
+                      onChange={(e) => handleParamChange('zoom', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <label className="text-sm">Pan X</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={imageParams.panX}
+                      onChange={(e) => handleParamChange('panX', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <label className="text-sm">Pan Y</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={imageParams.panY}
+                      onChange={(e) => handleParamChange('panY', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </details>
+            )}
 
             {/* Text Input Area */}
             <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
@@ -565,238 +763,134 @@ const NonogramEditor = () => {
                 </div>
               )}
             </div>
-
-            {/* File Controls */}
-            <div className="flex gap-4 bg-gray-50 p-4 rounded-lg">
-              <div className="flex gap-2">
-                <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm">
-                  <Upload size={20} />
-                  Upload Image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                </label>
-                {imagePreview && (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-10 h-10 object-contain border rounded-md"
-                  />
-                )}
-              </div>
-
-              <div className="h-full w-px bg-gray-200" />
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    console.log('Save button clicked in UI');
-                    handleSave();
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors shadow-sm"
-                >
-                  <Save size={20} />
-                  Save
-                </button>
-                <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors shadow-sm">
-                  <FolderOpen size={20} />
-                  Load
-                  <input
-                    type="file"
-                    accept=".nono"
-                    onChange={handleLoad}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            </div>
           </div>
 
-          {/* Add image processing controls after the File Controls section */}
-          {originalImageData && (
-            <div className="flex flex-col gap-4 bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-medium">Image Processing Controls</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {/* Add source image zoom controls at the top */}
-                <div className="flex flex-col gap-2 col-span-2">
-                  <label className="text-sm">Source Image Zoom</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="1"
-                      max="5"
-                      step="0.1"
-                      value={imageParams.zoom}
-                      onChange={(e) => handleParamChange('zoom', parseFloat(e.target.value))}
-                      className="flex-grow"
-                    />
-                    <span className="text-sm w-16">{Math.round(imageParams.zoom * 100)}%</span>
-                  </div>
-                </div>
-
-                {/* Add pan controls */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm">Horizontal Position</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={imageParams.panX}
-                    onChange={(e) => handleParamChange('panX', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm">Vertical Position</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={imageParams.panY}
-                    onChange={(e) => handleParamChange('panY', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-                
-                {/* Existing controls */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm">Red Channel Weight</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={imageParams.redWeight}
-                    onChange={(e) => handleParamChange('redWeight', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm">Green Channel Weight</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={imageParams.greenWeight}
-                    onChange={(e) => handleParamChange('greenWeight', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm">Blue Channel Weight</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={imageParams.blueWeight}
-                    onChange={(e) => handleParamChange('blueWeight', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm">Brightness Threshold</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="255"
-                    step="1"
-                    value={imageParams.brightnessThreshold}
-                    onChange={(e) => handleParamChange('brightnessThreshold', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm">Contrast</label>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="3"
-                    step="0.1"
-                    value={imageParams.contrast}
-                    onChange={(e) => handleParamChange('contrast', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
+          {/* Grid Column */}
+          <div className="w-3/4 overflow-auto">
+            <div className="grid gap-0 min-w-fit"
+              style={{
+                gridTemplateColumns: `repeat(${currentPreset.width + maxRowHints}, ${zoom}rem)`,
+                gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, ${zoom}rem)`
+              }}
+            >
+              {Array.from({ length: currentPreset.height + maxColHints }).map((_, gridRow) => (
+                <React.Fragment key={`row-${gridRow}`}>
+                  {Array.from({ length: currentPreset.width + maxRowHints }).map((_, gridCol) => {
+                    const isTopLeftCorner = gridRow < maxColHints && gridCol < maxRowHints;
+                    const isColumnHint = gridRow < maxColHints && gridCol >= maxRowHints;
+                    const isRowHint = gridRow >= maxColHints && gridCol < maxRowHints;
+                    
+                    const gameRow = gridRow - maxColHints;
+                    const gameCol = gridCol - maxRowHints;
+                    
+                    if (isTopLeftCorner) {
+                      return <div key={`cell-${gridRow}-${gridCol}`} style={{ width: `${zoom}rem`, height: `${zoom}rem` }} />;
+                    }
+                    
+                    if (isColumnHint) {
+                      const columnCells = grid.map(row => row[gameCol]);
+                      const hints = getColumnHints(gameCol);
+                      const hintIndex = hints.length - (maxColHints - gridRow);
+                      
+                      // Find the cells that contribute to this hint
+                      let currentIndex = 0;
+                      let currentCount = 0;
+                      let hintCells: string[] = [];
+                      
+                      for (let i = 0; i < columnCells.length; i++) {
+                        if (columnCells[i] !== 'none') {
+                          currentCount++;
+                          hintCells.push(columnCells[i]);
+                        } else if (currentCount > 0) {
+                          if (currentIndex === hintIndex) {
+                            break;
+                          }
+                          currentIndex++;
+                          currentCount = 0;
+                          hintCells = [];
+                        }
+                      }
+                      
+                      const hintColor = getHintColor(hintCells);
+                      
+                      return (
+                        <div key={`cell-${gridRow}-${gridCol}`} 
+                          style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                          className="flex items-center justify-center"
+                        >
+                          {hintIndex >= 0 && hintIndex < hints.length && (
+                            <span className={`text-xs font-mono ${hintColor}`}>
+                              {hints[hintIndex]}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    
+                    if (isRowHint) {
+                      const rowCells = grid[gameRow];
+                      const hints = getRowHints(gameRow);
+                      const hintIndex = hints.length - (maxRowHints - gridCol);
+                      
+                      // Find the cells that contribute to this hint
+                      let currentIndex = 0;
+                      let currentCount = 0;
+                      let hintCells: string[] = [];
+                      
+                      for (let i = 0; i < rowCells.length; i++) {
+                        if (rowCells[i] !== 'none') {
+                          currentCount++;
+                          hintCells.push(rowCells[i]);
+                        } else if (currentCount > 0) {
+                          if (currentIndex === hintIndex) {
+                            break;
+                          }
+                          currentIndex++;
+                          currentCount = 0;
+                          hintCells = [];
+                        }
+                      }
+                      
+                      const hintColor = getHintColor(hintCells);
+                      
+                      return (
+                        <div key={`cell-${gridRow}-${gridCol}`} 
+                          style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                          className="flex items-center justify-center"
+                        >
+                          {hintIndex >= 0 && hintIndex < hints.length && (
+                            <span className={`text-xs font-mono ${hintColor}`}>
+                              {hints[hintIndex]}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div
+                        key={`cell-${gridRow}-${gridCol}`}
+                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                        className={`border border-gray-200 cursor-pointer ${
+                          grid[gameRow][gameCol] === 'black' ? 'bg-black' :
+                          grid[gameRow][gameCol] === 'red' ? 'bg-red-500' :
+                          'bg-white'
+                        } hover:bg-gray-300`}
+                        onClick={() => toggleCell(gameRow, gameCol)}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </div>
-          )}
-
-          {/* Grid */}
-          <div
-            className="grid gap-0"
-            style={{
-              gridTemplateColumns: `repeat(${currentPreset.width + maxRowHints}, ${zoom}rem)`,
-              gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, ${zoom}rem)`
-            }}
-          >
-            {Array.from({ length: currentPreset.height + maxColHints }).map((_, gridRow) => (
-              <React.Fragment key={`row-${gridRow}`}>
-                {Array.from({ length: currentPreset.width + maxRowHints }).map((_, gridCol) => {
-                  const isTopLeftCorner = gridRow < maxColHints && gridCol < maxRowHints;
-                  const isColumnHint = gridRow < maxColHints && gridCol >= maxRowHints;
-                  const isRowHint = gridRow >= maxColHints && gridCol < maxRowHints;
-                  
-                  const gameRow = gridRow - maxColHints;
-                  const gameCol = gridCol - maxRowHints;
-                  
-                  if (isTopLeftCorner) {
-                    return <div key={`cell-${gridRow}-${gridCol}`} style={{ width: `${zoom}rem`, height: `${zoom}rem` }} />;
-                  }
-                  
-                  if (isColumnHint) {
-                    const hints = getColumnHints(gameCol);
-                    const hintIndex = hints.length - (maxColHints - gridRow);
-                    return (
-                      <div key={`cell-${gridRow}-${gridCol}`} 
-                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                        className="flex items-center justify-center"
-                      >
-                        {hintIndex >= 0 && hintIndex < hints.length && (
-                          <span className="text-xs font-mono">{hints[hintIndex]}</span>
-                        )}
-                      </div>
-                    );
-                  }
-                  
-                  if (isRowHint) {
-                    const hints = getRowHints(gameRow);
-                    const hintIndex = hints.length - (maxRowHints - gridCol);
-                    return (
-                      <div key={`cell-${gridRow}-${gridCol}`} 
-                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                        className="flex items-center justify-center"
-                      >
-                        {hintIndex >= 0 && hintIndex < hints.length && (
-                          <span className="text-xs font-mono">{hints[hintIndex]}</span>
-                        )}
-                      </div>
-                    );
-                  }
-                  
-                  return (
-                    <div
-                      key={`cell-${gridRow}-${gridCol}`}
-                      style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                      className={`border border-gray-200 cursor-pointer ${
-                        grid[gameRow][gameCol] ? 'bg-black' : 'bg-white'
-                      } hover:bg-gray-300`}
-                      onClick={() => toggleCell(gameRow, gameCol)}
-                    />
-                  );
-                })}
-              </React.Fragment>
-            ))}
+            <div className="mt-2 text-sm text-gray-500 italic">
+              Hold R + Click for red pixels
+            </div>
           </div>
         </div>
       </CardContent>
     </Card>
+    
   );
 };
 
