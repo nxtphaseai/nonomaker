@@ -407,14 +407,14 @@ const NonogramEditor = () => {
       console.log('API Response:', data);
       
 
-      
+
       // Now TypeScript knows the shape of the data
       const imageUrls = data.provider_response?.images?.map(img => img.url) || [];
       setGeneratedImages(imageUrls);
       
     } catch (error) {
       console.error('Generation error:', error);
-      alert('Failed to generate nonogram. Please try again.');
+      alert('Failed to generate nonogram. Please try again...');
     } finally {
       setIsGenerating(false);
     }
