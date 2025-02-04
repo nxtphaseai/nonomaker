@@ -19,6 +19,6 @@ function App() {
 }
 
 // Import the DefaultPage component explicitly
-import DefaultPage from './artifacts/default';
+import DefaultPage from './default/default';
 
 export default App;
