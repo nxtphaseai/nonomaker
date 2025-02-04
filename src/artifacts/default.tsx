@@ -21,6 +21,24 @@ interface GridStates {
   [key: number]: boolean[][];
 }
 
+// Add interface for the API response structure
+interface GeneratedImage {
+  url: string;
+  width: number;
+  height: number;
+  content_type: string;
+}
+
+interface ProviderResponse {
+  images: GeneratedImage[];
+  // ... other provider response fields if needed
+}
+
+interface ApiResponse {
+  provider_response: ProviderResponse;
+  // ... other response fields if needed
+}
+
 const NonogramEditor = () => {
   const [selectedPreset, setSelectedPreset] = useState(3);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -385,10 +403,10 @@ const NonogramEditor = () => {
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: ApiResponse = await response.json();
       console.log('API Response:', data);
       
-      // Extract image URLs from the response
+      // Now TypeScript knows the shape of the data
       const imageUrls = data.provider_response?.images?.map(img => img.url) || [];
       setGeneratedImages(imageUrls);
       
