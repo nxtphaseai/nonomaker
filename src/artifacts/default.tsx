@@ -404,7 +404,7 @@ const NonogramEditor = () => {
       }
 
       const data: ApiResponse = await response.json();
-      console.log('API Response:', data);
+      console.log('API Response :', data);
       
 
 
