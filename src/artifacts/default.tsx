@@ -404,7 +404,7 @@ const NonogramEditor = () => {
       }
 
       const data: ApiResponse = await response.json();
-      console.log('API Response:', data);
+      console.log('API Response :', data);
       
       // Now TypeScript knows the shape of the data
       const imageUrls = data.provider_response?.images?.map(img => img.url) || [];
