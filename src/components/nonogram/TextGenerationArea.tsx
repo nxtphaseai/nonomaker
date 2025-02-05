@@ -1,5 +1,4 @@
 import React from 'react';
-import { GeneratedImage } from './types';
 
 interface TextGenerationAreaProps {
   generationText: string;

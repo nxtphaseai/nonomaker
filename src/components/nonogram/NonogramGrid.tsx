@@ -14,8 +14,6 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   grid,
   currentPreset,
   zoom,
-  isRKeyPressed,
-  processing,
   onToggleCell,
 }) => {
   const getRowHints = (row: number) => {
@@ -110,23 +108,20 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                 const hintColor = getHintColor(hintCells);
                 
                 return (
-                  <div key={`cell-${gridRow}-${gridCol}`} 
+                  <div 
+                    key={`cell-${gridRow}-${gridCol}`} 
+                    className={`flex items-center justify-center ${hintColor}`}
                     style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                    className="flex items-center justify-center"
                   >
-                    {hintIndex >= 0 && hintIndex < hints.length && (
-                      <span className={`text-xs font-mono ${hintColor}`}>
-                        {hints[hintIndex]}
-                      </span>
-                    )}
+                    {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex] : ''}
                   </div>
                 );
               }
-              
+
               if (isRowHint) {
                 const rowCells = grid[gameRow];
                 const hints = getRowHints(gameRow);
-                const hintIndex = hints.length - (maxRowHints - gridCol);
+                const hintIndex = gridCol - (maxRowHints - hints.length);
                 
                 let currentIndex = 0;
                 let currentCount = 0;
@@ -149,37 +144,30 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                 const hintColor = getHintColor(hintCells);
                 
                 return (
-                  <div key={`cell-${gridRow}-${gridCol}`} 
+                  <div 
+                    key={`cell-${gridRow}-${gridCol}`} 
+                    className={`flex items-center justify-center ${hintColor}`}
                     style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                    className="flex items-center justify-center"
                   >
-                    {hintIndex >= 0 && hintIndex < hints.length && (
-                      <span className={`text-xs font-mono ${hintColor}`}>
-                        {hints[hintIndex]}
-                      </span>
-                    )}
+                    {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex] : ''}
                   </div>
                 );
               }
-              
+
               return (
                 <div
                   key={`cell-${gridRow}-${gridCol}`}
-                  style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                  className={`border border-gray-200 cursor-pointer ${
+                  className={`border border-gray-300 cursor-pointer ${
                     grid[gameRow][gameCol] === 'black' ? 'bg-black' :
-                    grid[gameRow][gameCol] === 'red' ? 'bg-red-500' :
-                    'bg-white'
-                  } hover:bg-gray-300`}
+                    grid[gameRow][gameCol] === 'red' ? 'bg-red-500' : 'bg-white'
+                  }`}
+                  style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
                   onClick={() => onToggleCell(gameRow, gameCol)}
                 />
               );
             })}
           </React.Fragment>
         ))}
-      </div>
-      <div className="mt-2 text-sm text-gray-500 italic">
-        Hold R + Click for red pixels
       </div>
     </div>
   );
