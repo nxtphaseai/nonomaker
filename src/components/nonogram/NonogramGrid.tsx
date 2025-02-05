@@ -5,6 +5,8 @@ interface NonogramGridProps {
   grid: string[][];
   currentPreset: GridPreset;
   zoom: number;
+  offsetX: number;
+  offsetY: number;
   isRKeyPressed: boolean;
   processing: boolean;
   onToggleCell: (row: number, col: number) => void;
@@ -14,42 +16,78 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   grid,
   currentPreset,
   zoom,
+  offsetX,
+  offsetY,
+  isRKeyPressed,
+  processing,
   onToggleCell,
 }) => {
   const getRowHints = (row: number) => {
     if (!grid || !grid[row]) return [0];
     
     const hints = [];
-    let count = 0;
+    let currentCount = 0;
+    let currentColor = null;
     
     for (let x = 0; x < grid[row].length; x++) {
-      if (grid[row][x] !== 'none') {
-        count++;
-      } else if (count > 0) {
-        hints.push(count);
-        count = 0;
+      const cell = grid[row][x];
+      
+      if (cell === 'none') {
+        if (currentCount > 0) {
+          hints.push({ count: currentCount, color: currentColor });
+          currentCount = 0;
+        }
+      } else {
+        if (currentCount > 0 && currentColor !== cell) {
+          hints.push({ count: currentCount, color: currentColor });
+          currentCount = 0;
+        }
+        currentColor = cell;
+        currentCount++;
       }
     }
-    if (count > 0) hints.push(count);
-    return hints.length ? hints : [0];
+    
+    // Handle remaining count at end of row
+    if (currentCount > 0) {
+      hints.push({ count: currentCount, color: currentColor });
+    }
+    
+    return hints.length ? hints : [{ count: 0, color: 'black' }];
   };
 
   const getColumnHints = (col: number) => {
     if (!grid) return [0];
     
     const hints = [];
-    let count = 0;
+    let currentCount = 0;
+    let currentColor = null;
     
     for (let y = 0; y < grid.length; y++) {
-      if (grid[y] && grid[y][col] !== 'none') {
-        count++;
-      } else if (count > 0) {
-        hints.push(count);
-        count = 0;
+      if (!grid[y]) continue;
+      
+      const cell = grid[y][col];
+      
+      if (cell === 'none') {
+        if (currentCount > 0) {
+          hints.push({ count: currentCount, color: currentColor });
+          currentCount = 0;
+        }
+      } else {
+        if (currentCount > 0 && currentColor !== cell) {
+          hints.push({ count: currentCount, color: currentColor });
+          currentCount = 0;
+        }
+        currentColor = cell;
+        currentCount++;
       }
     }
-    if (count > 0) hints.push(count);
-    return hints.length ? hints : [0];
+    
+    // Handle remaining count at end of column
+    if (currentCount > 0) {
+      hints.push({ count: currentCount, color: currentColor });
+    }
+    
+    return hints.length ? hints : [{ count: 0, color: 'black' }];
   };
 
   const getHintColor = (cells: string[]) => {
@@ -61,113 +99,124 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   const maxColHints = Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length));
 
   return (
-    <div className="overflow-auto">
-      <div className="grid gap-0 min-w-fit"
-        style={{
-          gridTemplateColumns: `repeat(${currentPreset.width + maxRowHints}, ${zoom}rem)`,
-          gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, ${zoom}rem)`
-        }}
-      >
-        {Array.from({ length: currentPreset.height + maxColHints }).map((_, gridRow) => (
-          <React.Fragment key={`row-${gridRow}`}>
-            {Array.from({ length: currentPreset.width + maxRowHints }).map((_, gridCol) => {
-              const isTopLeftCorner = gridRow < maxColHints && gridCol < maxRowHints;
-              const isColumnHint = gridRow < maxColHints && gridCol >= maxRowHints;
-              const isRowHint = gridRow >= maxColHints && gridCol < maxRowHints;
-              
-              const gameRow = gridRow - maxColHints;
-              const gameCol = gridCol - maxRowHints;
-              
-              if (isTopLeftCorner) {
-                return <div key={`cell-${gridRow}-${gridCol}`} style={{ width: `${zoom}rem`, height: `${zoom}rem` }} />;
-              }
-              
-              if (isColumnHint) {
-                const columnCells = grid.map(row => row[gameCol]);
-                const hints = getColumnHints(gameCol);
-                const hintIndex = hints.length - (maxColHints - gridRow);
+    <div className="flex flex-col gap-2">
+      <div className="overflow-auto">
+        <div 
+          className="grid gap-0 min-w-fit"
+          style={{
+            gridTemplateColumns: `repeat(${currentPreset.width + maxRowHints}, ${zoom}rem)`,
+            gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, ${zoom}rem)`,
+          }}
+        >
+          {Array.from({ length: currentPreset.height + maxColHints }).map((_, gridRow) => (
+            <React.Fragment key={gridRow}>
+              {Array.from({ length: currentPreset.width + maxRowHints }).map((_, gridCol) => {
+                const isHintCell = gridRow < maxColHints || gridCol < maxRowHints;
+                const row = gridRow - maxColHints;
+                const col = gridCol - maxRowHints;
                 
-                let currentIndex = 0;
-                let currentCount = 0;
-                let hintCells: string[] = [];
-                
-                for (let i = 0; i < columnCells.length; i++) {
-                  if (columnCells[i] !== 'none') {
-                    currentCount++;
-                    hintCells.push(columnCells[i]);
-                  } else if (currentCount > 0) {
-                    if (currentIndex === hintIndex) {
-                      break;
-                    }
-                    currentIndex++;
-                    currentCount = 0;
-                    hintCells = [];
+                if (isHintCell) {
+                  const isTopLeftCorner = gridRow < maxColHints && gridCol < maxRowHints;
+                  const isColumnHint = gridRow < maxColHints && gridCol >= maxRowHints;
+                  const isRowHint = gridRow >= maxColHints && gridCol < maxRowHints;
+                  
+                  if (isTopLeftCorner) {
+                    return <div key={`${gridRow}-${gridCol}`} style={{ width: `${zoom}rem`, height: `${zoom}rem` }} />;
                   }
-                }
-                
-                const hintColor = getHintColor(hintCells);
-                
-                return (
-                  <div 
-                    key={`cell-${gridRow}-${gridCol}`} 
-                    className={`flex items-center justify-center ${hintColor}`}
-                    style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                  >
-                    {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex] : ''}
-                  </div>
-                );
-              }
-
-              if (isRowHint) {
-                const rowCells = grid[gameRow];
-                const hints = getRowHints(gameRow);
-                const hintIndex = gridCol - (maxRowHints - hints.length);
-                
-                let currentIndex = 0;
-                let currentCount = 0;
-                let hintCells: string[] = [];
-                
-                for (let i = 0; i < rowCells.length; i++) {
-                  if (rowCells[i] !== 'none') {
-                    currentCount++;
-                    hintCells.push(rowCells[i]);
-                  } else if (currentCount > 0) {
-                    if (currentIndex === hintIndex) {
-                      break;
+                  
+                  if (isColumnHint) {
+                    const columnCells = grid.map(row => row[col]);
+                    const hints = getColumnHints(col);
+                    const hintIndex = hints.length - (maxColHints - gridRow);
+                    
+                    let currentIndex = 0;
+                    let currentCount = 0;
+                    let hintCells: string[] = [];
+                    
+                    for (let i = 0; i < columnCells.length; i++) {
+                      if (columnCells[i] !== 'none') {
+                        currentCount++;
+                        hintCells.push(columnCells[i]);
+                      } else if (currentCount > 0) {
+                        if (currentIndex === hintIndex) {
+                          break;
+                        }
+                        currentIndex++;
+                        currentCount = 0;
+                        hintCells = [];
+                      }
                     }
-                    currentIndex++;
-                    currentCount = 0;
-                    hintCells = [];
+                    
+                    const hintColor = getHintColor(hintCells);
+                    
+                    return (
+                      <div 
+                        key={`${gridRow}-${gridCol}`} 
+                        className={`flex items-center justify-center ${hintColor}`}
+                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                      >
+                        {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex].count : ''}
+                      </div>
+                    );
                   }
-                }
-                
-                const hintColor = getHintColor(hintCells);
-                
-                return (
-                  <div 
-                    key={`cell-${gridRow}-${gridCol}`} 
-                    className={`flex items-center justify-center ${hintColor}`}
-                    style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                  >
-                    {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex] : ''}
-                  </div>
-                );
-              }
 
-              return (
-                <div
-                  key={`cell-${gridRow}-${gridCol}`}
-                  className={`border border-gray-300 cursor-pointer ${
-                    grid[gameRow][gameCol] === 'black' ? 'bg-black' :
-                    grid[gameRow][gameCol] === 'red' ? 'bg-red-500' : 'bg-white'
-                  }`}
-                  style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
-                  onClick={() => onToggleCell(gameRow, gameCol)}
-                />
-              );
-            })}
-          </React.Fragment>
-        ))}
+                  if (isRowHint) {
+                    const rowCells = grid[row];
+                    const hints = getRowHints(row);
+                    const hintIndex = gridCol - (maxRowHints - hints.length);
+                    
+                    let startIndex = 0;
+                    for (let i = 0; i < hintIndex; i++) {
+                      startIndex += hints[i].count;
+                    }
+                    
+                    const hintColor = hintIndex >= 0 && hintIndex < hints.length 
+                      ? getHintColor(rowCells, startIndex, hints[hintIndex].count)
+                      : 'text-black';
+                    
+                    return (
+                      <div 
+                        key={`${gridRow}-${gridCol}`} 
+                        className={`flex items-center justify-center ${hintColor}`}
+                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                      >
+                        {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex].count : ''}
+                      </div>
+                    );
+                  }
+                } else {
+                  const cellValue = grid[row][col];
+                  const cellSize = `${zoom}rem`;
+                  
+                  return (
+                    <div
+                      key={`${gridRow}-${gridCol}`}
+                      className="relative border border-gray-200 cursor-pointer transition-colors"
+                      style={{ width: cellSize, height: cellSize }}
+                      onClick={() => !processing && onToggleCell(row, col)}
+                    >
+                      {cellValue !== 'none' && (
+                        <div
+                          className={`absolute ${cellValue === 'black' ? 'bg-black' : 'bg-red-500'}`}
+                          style={{
+                            width: cellSize,
+                            height: cellSize,
+                            left: `${offsetX * zoom}rem`,
+                            top: `${offsetY * zoom}rem`,
+                            transition: 'all 0.1s ease-out'
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                }
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+      <div className="text-sm text-gray-500 text-center">
+        <p>Press R for a red cell • Ctrl+Z to undo • Ctrl+X to redo</p>
       </div>
     </div>
   );

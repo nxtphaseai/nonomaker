@@ -33,3 +33,8 @@ export interface ProviderResponse {
 export interface ApiResponse {
   provider_response: ProviderResponse;
 }
+
+export interface GridParams {
+  offsetX: number;
+  offsetY: number;
+}

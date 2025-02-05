@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { GridControls } from './GridControls';
 import { ZoomControl } from './ZoomControl';
@@ -10,33 +10,99 @@ import { createEmptyGrid, processImageToGrid } from './utils';
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
 import { GridStates, ImageParams, ApiResponse } from './types';
 
+// Update HistoryState interface to include imageParams
+interface HistoryState {
+  gridStates: GridStates;
+  selectedPreset: number;
+  imageParams: ImageParams;  // Add this
+}
+
+// Add this constant near your other constants
+const DEFAULT_GRID_PARAMS: GridParams = {
+  offsetX: 0,
+  offsetY: 0
+};
+
 export const NonogramEditor: React.FC = () => {
-  const [selectedPreset, setSelectedPreset] = useState(3);
+  // Update initial state to include imageParams
+  const [undoRedoState, setUndoRedoState] = useState<UndoRedoState>(() => {
+    const initialGridStates: GridStates = {};
+    GRID_PRESETS.forEach((preset, index) => {
+      initialGridStates[index] = createEmptyGrid(preset.width, preset.height);
+    });
+    return {
+      past: [],
+      present: {
+        gridStates: initialGridStates,
+        selectedPreset: 3,
+        imageParams: DEFAULT_IMAGE_PARAMS,
+        gridParams: DEFAULT_GRID_PARAMS
+      },
+      future: []
+    };
+  });
+
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [originalImageData, setOriginalImageData] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [gridStates, setGridStates] = useState<GridStates>(() => {
-    const initialStates: GridStates = {};
-    GRID_PRESETS.forEach((preset, index) => {
-      initialStates[index] = createEmptyGrid(preset.width, preset.height);
-    });
-    return initialStates;
-  });
-
-  const [imageParams, setImageParams] = useState<ImageParams>(DEFAULT_IMAGE_PARAMS);
-  const [zoom, setZoom] = useState(1.5);
+  const [isRKeyPressed, setIsRKeyPressed] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [generationText, setGenerationText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [isRKeyPressed, setIsRKeyPressed] = useState(false);
 
-  const currentPreset = GRID_PRESETS[selectedPreset];
-  const grid = gridStates[selectedPreset];
+  const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
+  // Define handlers before useEffect
+  const handleUndo = useCallback(() => {
+    setUndoRedoState(currentState => {
+      const { past, present, future } = currentState;
+      if (past.length === 0) return currentState;
+
+      const previous = past[past.length - 1];
+      const newPast = past.slice(0, past.length - 1);
+
+      return {
+        past: newPast,
+        present: previous,
+        future: [present, ...future]
+      };
+    });
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    setUndoRedoState(currentState => {
+      const { past, present, future } = currentState;
+      if (future.length === 0) return currentState;
+
+      const next = future[0];
+      const newFuture = future.slice(1);
+
+      return {
+        past: [...past, present],
+        present: next,
+        future: newFuture
+      };
+    });
+  }, []);
+
+  // Now use the handlers in useEffect
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'r') {
         setIsRKeyPressed(true);
+      }
+      // Add undo/redo keyboard shortcuts
+      if (e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if (e.key.toLowerCase() === 'y' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        handleRedo();
       }
     };
 
@@ -53,42 +119,40 @@ export const NonogramEditor: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [handleUndo, handleRedo]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !file.type.startsWith('image/')) return;
+    if (!file) return;
 
     setProcessing(true);
     try {
-      const reader = new FileReader();
-      const imageData = await new Promise<string>((resolve, reject) => {
-        reader.onload = (e) => {
-          if (!e.target) reject(new Error('No target'));
-          resolve(e.target?.result as string);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      setOriginalImageData(imageData);
-      setImagePreview(imageData);
-
+      const imageUrl = await readFileAsDataURL(file);
+      const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
       const newGrid = await processImageToGrid(
-        imageData,
+        imageUrl,
         currentPreset.width,
         currentPreset.height,
-        imageParams
+        undoRedoState.present.imageParams
       );
 
-      setGridStates(prev => ({
-        ...prev,
-        [selectedPreset]: newGrid
+      setUndoRedoState(currentState => ({
+        past: [...currentState.past, currentState.present],
+        present: {
+          ...currentState.present,
+          gridStates: {
+            ...currentState.present.gridStates,
+            [currentState.present.selectedPreset]: newGrid
+          },
+          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+        },
+        future: []
       }));
-    } catch (error: unknown) {
+
+      setImagePreview(imageUrl);
+      setOriginalImageData(imageUrl);
+    } catch (error) {
       console.error('Error processing image:', error);
-      const message = error instanceof Error ? error.message : 'Unknown error occurred';
-      alert('Failed to process image. ' + message);
     } finally {
       setProcessing(false);
     }
@@ -99,8 +163,8 @@ export const NonogramEditor: React.FC = () => {
       const saveData = {
         version: 1,
         timestamp: new Date().toISOString(),
-        preset: selectedPreset,
-        grid: grid,
+        preset: undoRedoState.present.selectedPreset,
+        grid: undoRedoState.present.gridStates[undoRedoState.present.selectedPreset],
         imageData: originalImageData
       };
 
@@ -132,10 +196,17 @@ export const NonogramEditor: React.FC = () => {
         const saveData = JSON.parse(e.target?.result as string);
         
         if (typeof saveData.preset === 'number' && saveData.grid) {
-          setSelectedPreset(saveData.preset);
-          setGridStates(prev => ({
-            ...prev,
-            [saveData.preset]: saveData.grid
+          setUndoRedoState(currentState => ({
+            past: [...currentState.past, currentState.present],
+            present: {
+              gridStates: {
+                ...currentState.present.gridStates,
+                [saveData.preset]: saveData.grid
+              },
+              selectedPreset: saveData.preset,
+              imageParams: currentState.present.imageParams
+            },
+            future: []
           }));
         }
 
@@ -153,84 +224,115 @@ export const NonogramEditor: React.FC = () => {
   };
 
   const handleClear = () => {
-    setGridStates(prev => ({
-      ...prev,
-      [selectedPreset]: createEmptyGrid(currentPreset.width, currentPreset.height)
+    const newGridStates = {
+      ...undoRedoState.present.gridStates,
+      [undoRedoState.present.selectedPreset]: createEmptyGrid(
+        currentPreset.width,
+        currentPreset.height
+      )
+    };
+
+    setUndoRedoState(currentState => ({
+      past: [...currentState.past, currentState.present],
+      present: {
+        gridStates: newGridStates,
+        selectedPreset: currentState.present.selectedPreset,
+        imageParams: currentState.present.imageParams
+      },
+      future: []
     }));
-    setImagePreview(null);
-    setOriginalImageData(null);
   };
 
-  const handlePresetChange = async (index: number) => {
-    if (index === selectedPreset) return;
-    
-    setGridStates(prev => ({
-      ...prev,
-      [selectedPreset]: grid
-    }));
-    
-    setSelectedPreset(index);
-    
-    if (originalImageData && !gridStates[index]) {
-      setProcessing(true);
-      try {
-        const newGrid = await processImageToGrid(
-          originalImageData,
-          GRID_PRESETS[index].width,
-          GRID_PRESETS[index].height,
-          imageParams
+  const handlePresetChange = (presetIndex: number) => {
+    setUndoRedoState(currentState => {
+      // If the grid doesn't exist for this preset, create it
+      if (!currentState.present.gridStates[presetIndex]) {
+        const preset = GRID_PRESETS[presetIndex];
+        currentState.present.gridStates[presetIndex] = createEmptyGrid(
+          preset.width,
+          preset.height
         );
-        setGridStates(prev => ({
-          ...prev,
-          [index]: newGrid
-        }));
-      } catch (error) {
-        console.error('Error processing image:', error);
-      } finally {
-        setProcessing(false);
       }
-    }
+
+      return {
+        past: [...currentState.past, currentState.present],
+        present: {
+          ...currentState.present,
+          selectedPreset: presetIndex,
+          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+        },
+        future: []
+      };
+    });
   };
 
   const toggleCell = (row: number, col: number) => {
-    if (processing) return;
-    
-    setGridStates(prev => ({
-      ...prev,
-      [selectedPreset]: prev[selectedPreset].map((rowArray, rowIndex) =>
-        rowIndex === row
-          ? rowArray.map((cell, colIndex) => {
-              if (colIndex !== col) return cell;
-              if (cell === 'none') {
-                return isRKeyPressed ? 'red' : 'black';
-              }
-              return 'none';
-            })
-          : rowArray
-      )
-    }));
+    setUndoRedoState(currentState => {
+      const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
+      const newGrid = currentGrid.map((r, i) =>
+        i === row
+          ? r.map((cell, j) =>
+              j === col
+                ? cell === 'none'
+                  ? isRKeyPressed
+                    ? 'red'
+                    : 'black'
+                  : cell === 'black'
+                  ? 'none'
+                  : 'none'
+                : cell
+            )
+          : r
+      );
+
+      return {
+        past: [...currentState.past, currentState.present],
+        present: {
+          ...currentState.present,
+          gridStates: {
+            ...currentState.present.gridStates,
+            [currentState.present.selectedPreset]: newGrid
+          },
+          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+        },
+        future: []
+      };
+    });
   };
 
   const handleParamChange = async (param: keyof ImageParams, value: number) => {
     if (!originalImageData) return;
-    
-    const newParams = { ...imageParams, [param]: value };
-    setImageParams(newParams);
-    
+
     setProcessing(true);
     try {
+      const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
+      const newImageParams = {
+        ...undoRedoState.present.imageParams,
+        [param]: value
+      };
+
       const newGrid = await processImageToGrid(
         originalImageData,
         currentPreset.width,
         currentPreset.height,
-        newParams
+        newImageParams
       );
-      setGridStates(prev => ({
-        ...prev,
-        [selectedPreset]: newGrid
+
+      setUndoRedoState(currentState => ({
+        past: [...currentState.past, currentState.present],
+        present: {
+          ...currentState.present,
+          gridStates: {
+            ...currentState.present.gridStates,
+            [currentState.present.selectedPreset]: newGrid
+          },
+          imageParams: newImageParams,
+          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+        },
+        future: []
       }));
     } catch (error) {
-      console.error('Error processing image:', error);
+      console.error('Error updating image parameters:', error);
     } finally {
       setProcessing(false);
     }
@@ -280,35 +382,50 @@ export const NonogramEditor: React.FC = () => {
     }
   };
 
-  const handleUseGeneratedImage = async (imageUrl: string) => {
-    setProcessing(true);
+  const convertUrlToDataUrl = async (url: string): Promise<string> => {
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(url);
       const blob = await response.blob();
-      const reader = new FileReader();
-      const base64Data = await new Promise<string>((resolve, reject) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
+    } catch (error) {
+      console.error('Error converting URL to data URL:', error);
+      return url; // Fall back to original URL if conversion fails
+    }
+  };
 
-      setOriginalImageData(base64Data);
-      setImagePreview(base64Data);
-      
+  const handleUseGeneratedImage = async (imageUrl: string) => {
+    setProcessing(true);
+    try {
+      const dataUrl = await convertUrlToDataUrl(imageUrl);
+      const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
       const newGrid = await processImageToGrid(
-        base64Data,
+        dataUrl,
         currentPreset.width,
         currentPreset.height,
-        imageParams
+        undoRedoState.present.imageParams
       );
 
-      setGridStates(prev => ({
-        ...prev,
-        [selectedPreset]: newGrid
+      setUndoRedoState(currentState => ({
+        past: [...currentState.past, currentState.present],
+        present: {
+          ...currentState.present,
+          gridStates: {
+            ...currentState.present.gridStates,
+            [currentState.present.selectedPreset]: newGrid
+          },
+          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+        },
+        future: []
       }));
+
+      setOriginalImageData(imageUrl);
     } catch (error) {
-      console.error('Error processing generated image:', error);
-      alert('Failed to process the generated image. Please try again.');
+      console.error('Error processing image:', error);
     } finally {
       setProcessing(false);
     }
@@ -331,11 +448,11 @@ export const NonogramEditor: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        <div className="flex gap-8">
-          {/* Controls Column - 1/4 width */}
-          <div className="w-1/4 flex flex-col gap-4">
+        <div className="flex gap-6">
+          {/* Controls Column */}
+          <div className="w-1/4 flex flex-col gap-4 h-[calc(100vh-6rem)] overflow-y-auto">
             <GridControls
-              selectedPreset={selectedPreset}
+              selectedPreset={undoRedoState.present.selectedPreset}
               presets={GRID_PRESETS}
               processing={processing}
               onPresetChange={handlePresetChange}
@@ -364,19 +481,24 @@ export const NonogramEditor: React.FC = () => {
               onLoad={handleLoad}
             />
 
-            <ImageProcessingControls
-              imageParams={imageParams}
-              onParamChange={handleParamChange}
-              show={!!originalImageData}
-            />
+            {originalImageData && (
+              <ImageProcessingControls
+                show={true}
+                imageParams={undoRedoState.present.imageParams}
+                onParamChange={handleParamChange}
+                processing={processing}
+              />
+            )}
           </div>
 
           {/* Grid Column */}
-          <div className="w-3/4">
+          <div className="w-3/4 sticky top-4">
             <NonogramGrid
-              grid={grid}
+              grid={undoRedoState.present.gridStates[undoRedoState.present.selectedPreset]}
               currentPreset={currentPreset}
               zoom={zoom}
+              offsetX={0}
+              offsetY={0}
               isRKeyPressed={isRKeyPressed}
               processing={processing}
               onToggleCell={toggleCell}
