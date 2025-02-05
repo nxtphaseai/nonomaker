@@ -319,12 +319,12 @@ export const NonogramEditor: React.FC = () => {
       <CardHeader className="text-center">
         <div className="flex justify-between items-center mb-4">
           <img 
-            src="assets/logo.svg" 
+            src="https://nxtphase.ai/images/logo.svg" 
             alt="Logo" 
             className="h-12 object-contain"
           />
           <img 
-            src="assets/keesing.jpg" 
+            src="https://www.keesing.com/wp-content/uploads/2024/02/logo-keesing-white.svg" 
             alt="Keesing Logo" 
             className="h-12 object-contain"
           />
