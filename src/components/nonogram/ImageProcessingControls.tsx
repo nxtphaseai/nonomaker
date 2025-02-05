@@ -127,6 +127,35 @@ export const ImageProcessingControls: React.FC<ImageProcessingControlsProps> = (
             />
           </div>
         </div>
+
+        {/* Image Stretch Controls */}
+        <div className="space-y-2 mb-4">
+          <h4 className="text-sm font-medium mb-2">Image Stretch</h4>
+          <div className="space-y-2">
+            <label className="text-sm" htmlFor="stretch-x">Horizontal Stretch</label>
+            <input
+              id="stretch-x"
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value={imageParams.stretchX}
+              onChange={(e) => onParamChange('stretchX', parseFloat(e.target.value))}
+              className="w-full"
+            />
+            <label className="text-sm" htmlFor="stretch-y">Vertical Stretch</label>
+            <input
+              id="stretch-y"
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value={imageParams.stretchY}
+              onChange={(e) => onParamChange('stretchY', parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        </div>
       </div>
     </details>
   );

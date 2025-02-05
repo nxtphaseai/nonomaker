@@ -13,6 +13,8 @@ export interface ImageParams {
   zoom: number;
   panX: number;
   panY: number;
+  stretchX: number;
+  stretchY: number;
 }
 
 export interface GridStates {
