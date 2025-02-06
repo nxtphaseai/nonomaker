@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { GridPreset } from './types';
 
 interface NonogramGridProps {
@@ -26,12 +26,16 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   const [lastCell, setLastCell] = useState<{ row: number; col: number } | null>(null);
   // Add state for grid visibility
   const [showGrid, setShowGrid] = useState(true);
+  // Add state for hint visibility
+  const [showHints, setShowHints] = useState(true);
 
-  // Add effect for handling 'T' key press
-  useEffect(() => {
+  // Combine key press handlers
+  React.useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 't') {
         setShowGrid(prev => !prev);
+      } else if (e.key.toLowerCase() === 'h') {
+        setShowHints(prev => !prev);
       }
     };
 
@@ -138,10 +142,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     return hints.length ? hints : [{ count: 0, color: 'black' }];
   };
 
-  
-
-  const maxRowHints = Math.max(1, ...Array.from({ length: currentPreset.height }, (_, i) => getRowHints(i).length));
-  const maxColHints = Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length));
+  const maxRowHints = showHints ? Math.max(1, ...Array.from({ length: currentPreset.height }, (_, i) => getRowHints(i).length)) : 0;
+  const maxColHints = showHints ? Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length)) : 0;
 
   return (
     <div 
@@ -164,6 +166,11 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                 const row = gridRow - maxColHints;
                 const col = gridCol - maxRowHints;
                 
+                // If hints are hidden and this is a hint cell, don't render anything
+                if (!showHints && isHintCell) {
+                  return null;
+                }
+
                 if (isHintCell) {
                   const isTopLeftCorner = gridRow < maxColHints && gridCol < maxRowHints;
                   const isColumnHint = gridRow < maxColHints && gridCol >= maxRowHints;
@@ -176,8 +183,6 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   if (isColumnHint) {
                     const hints = getColumnHints(col);
                     const hintIndex = hints.length - (maxColHints - gridRow);
-                    
-                    // Use the computed color from getColumnHints directly, similar to horizontal hints.
                     const hintColor =
                       hintIndex >= 0 && hintIndex < hints.length
                         ? (hints[hintIndex].color === 'red' ? 'text-red-500' : 'text-black')
@@ -197,8 +202,6 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   if (isRowHint) {
                     const hints = getRowHints(row);
                     const hintIndex = gridCol - (maxRowHints - hints.length);
-                    
-                    // Use the color already computed by getRowHints to determine the hint's style.
                     const hintColor =
                       hintIndex >= 0 && hintIndex < hints.length
                         ? (hints[hintIndex].color === 'red' ? 'text-red-500' : 'text-black')
@@ -214,8 +217,16 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                       </div>
                     );
                   }
-                } else {
-                  const cellValue = grid[row][col];
+                }
+
+                // Regular cell rendering - adjust row/col calculation when hints are hidden
+                const actualRow = showHints ? row : gridRow;
+                const actualCol = showHints ? col : gridCol;
+                
+                // Only render if within grid bounds
+                if (actualRow >= 0 && actualRow < grid.length && 
+                    actualCol >= 0 && actualCol < grid[0].length) {
+                  const cellValue = grid[actualRow][actualCol];
                   const cellSize = `${zoom}rem`;
                   
                   return (
@@ -223,8 +234,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                       key={`${gridRow}-${gridCol}`}
                       className={`relative cursor-pointer transition-colors ${showGrid ? 'border border-gray-200' : ''}`}
                       style={{ width: cellSize, height: cellSize }}
-                      onMouseDown={() => handleMouseDown(row, col)}
-                      onMouseEnter={() => handleMouseEnter(row, col)}
+                      onMouseDown={() => handleMouseDown(actualRow, actualCol)}
+                      onMouseEnter={() => handleMouseEnter(actualRow, actualCol)}
                     >
                       {cellValue !== 'none' && (
                         <div
@@ -241,13 +252,14 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                     </div>
                   );
                 }
+                return null;
               })}
             </React.Fragment>
           ))}
         </div>
       </div>
       <div className="text-sm text-gray-500 text-left">
-        <p>Press R for a red cell • Ctrl+Z to undo • Ctrl+Shift+Z to redo • Click and drag to draw • Press T to toggle grid</p>
+        <p>Press R for a red cell • Ctrl+Z to undo • Ctrl+Shift+Z to redo • Click and drag to draw • Press T to toggle grid • Press H to toggle hints</p>
       </div>
     </div>
   );
