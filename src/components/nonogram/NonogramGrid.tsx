@@ -21,7 +21,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   processing,
   onToggleCell,
 }) => {
-  // Add state for tracking mouse
+  // Add state for tracking mouse.
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastCell, setLastCell] = useState<{ row: number; col: number } | null>(null);
   // Add state for grid visibility
