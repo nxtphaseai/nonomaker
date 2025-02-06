@@ -68,6 +68,7 @@ export const NonogramEditor: React.FC = () => {
   const [generationText, setGenerationText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [textareaFocused, setTextareaFocused] = useState(false);
 
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
@@ -510,6 +511,7 @@ export const NonogramEditor: React.FC = () => {
               onTextChange={setGenerationText}
               onGenerate={handleGenerate}
               onUseGeneratedImage={handleUseGeneratedImage}
+              onFocusChange={setTextareaFocused}
             />
 
             <FileControls
@@ -540,6 +542,7 @@ export const NonogramEditor: React.FC = () => {
               offsetY={0}
               isRKeyPressed={isRKeyPressed}
               processing={processing}
+              shortcutsEnabled={!textareaFocused}
               onToggleCell={toggleCell}
             />
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface TextGenerationAreaProps {
@@ -9,6 +9,7 @@ interface TextGenerationAreaProps {
   onTextChange: (text: string) => void;
   onGenerate: () => void;
   onUseGeneratedImage: (imageUrl: string) => void;
+  onFocusChange: (focused: boolean) => void;
 }
 
 export const TextGenerationArea: React.FC<TextGenerationAreaProps> = ({
@@ -19,6 +20,7 @@ export const TextGenerationArea: React.FC<TextGenerationAreaProps> = ({
   onTextChange,
   onGenerate,
   onUseGeneratedImage,
+  onFocusChange,
 }) => {
   const [isImagesExpanded, setIsImagesExpanded] = useState(true);
 
@@ -32,6 +34,8 @@ export const TextGenerationArea: React.FC<TextGenerationAreaProps> = ({
           id="generation-text"
           value={generationText}
           onChange={(e) => onTextChange(e.target.value)}
+          onFocus={() => onFocusChange(true)}
+          onBlur={() => onFocusChange(false)}
           disabled={isGenerating}
           className="w-full min-h-[100px] p-2 border rounded-md"
           placeholder="Enter your image description..."

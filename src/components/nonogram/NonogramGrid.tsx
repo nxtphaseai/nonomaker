@@ -9,6 +9,7 @@ interface NonogramGridProps {
   offsetY: number;
   isRKeyPressed: boolean;
   processing: boolean;
+  shortcutsEnabled: boolean;
   onToggleCell: (row: number, col: number) => void;
 }
 
@@ -19,6 +20,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   offsetX,
   offsetY,
   processing,
+  shortcutsEnabled,
   onToggleCell,
 }) => {
   // Add state for tracking mouse
@@ -29,9 +31,11 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   // Add state for hint visibility
   const [showHints, setShowHints] = useState(true);
 
-  // Combine key press handlers
+  // Modify the key press handler
   React.useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      if (!shortcutsEnabled) return;
+      
       if (e.key.toLowerCase() === 't') {
         setShowGrid(prev => !prev);
       } else if (e.key.toLowerCase() === 'h') {
@@ -41,7 +45,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [shortcutsEnabled]);
 
   // Handle mouse down event
   const handleMouseDown = (row: number, col: number) => {
