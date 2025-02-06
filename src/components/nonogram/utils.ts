@@ -95,6 +95,7 @@ export async function processImageToGrid(
     
     img.onerror = (error) => {
       // If the image fails to load with CORS, try to proxy it
+      console.log('error', error);
       if (!imageData.startsWith('data:')) {
         // Create a proxy URL using a CORS proxy service
         const proxyUrl = `https://cors-anywhere.herokuapp.com/${imageData}`;

@@ -18,12 +18,11 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   zoom,
   offsetX,
   offsetY,
-  isRKeyPressed,
   processing,
   onToggleCell,
 }) => {
   const getRowHints = (row: number) => {
-    if (!grid || !grid[row]) return [0];
+    if (!grid || !grid[row]) return [{ count: 0, color: 'black' }];
     
     const hints = [];
     let currentCount = 0;
@@ -56,7 +55,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   };
 
   const getColumnHints = (col: number) => {
-    if (!grid) return [0];
+    if (!grid) return [{ count: 0, color: 'black' }];
     
     const hints = [];
     let currentCount = 0;
@@ -170,9 +169,10 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                       startIndex += hints[i].count;
                     }
                     
-                    const hintColor = hintIndex >= 0 && hintIndex < hints.length 
-                      ? getHintColor(rowCells, startIndex, hints[hintIndex].count)
-                      : 'text-black';
+                    const hintColor =
+                      hintIndex >= 0 && hintIndex < hints.length
+                        ? getHintColor(rowCells.slice(startIndex, startIndex + hints[hintIndex].count))
+                        : 'text-black';
                     
                     return (
                       <div 

@@ -8,13 +8,21 @@ import { ImageProcessingControls } from './ImageProcessingControls';
 import { NonogramGrid } from './NonogramGrid';
 import { createEmptyGrid, processImageToGrid } from './utils';
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
-import { GridStates, ImageParams, ApiResponse } from './types';
+import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
 
-// Update HistoryState interface to include imageParams
+// Add this interface after GridStates import
+interface UndoRedoState {
+  past: HistoryState[];
+  present: HistoryState;
+  future: HistoryState[];
+}
+
+// Update HistoryState interface to include imageParams and gridParams
 interface HistoryState {
   gridStates: GridStates;
   selectedPreset: number;
-  imageParams: ImageParams;  // Add this
+  imageParams: ImageParams;
+  gridParams: GridParams;
 }
 
 // Add this constant near your other constants
@@ -23,8 +31,18 @@ const DEFAULT_GRID_PARAMS: GridParams = {
   offsetY: 0
 };
 
+// Add this helper function before the NonogramEditor component
+const readFileAsDataURL = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export const NonogramEditor: React.FC = () => {
-  // Update initial state to include imageParams
+  // Update initial state to include imageParams and gridParams
   const [undoRedoState, setUndoRedoState] = useState<UndoRedoState>(() => {
     const initialGridStates: GridStates = {};
     GRID_PRESETS.forEach((preset, index) => {
@@ -204,7 +222,8 @@ export const NonogramEditor: React.FC = () => {
                 [saveData.preset]: saveData.grid
               },
               selectedPreset: saveData.preset,
-              imageParams: currentState.present.imageParams
+              imageParams: currentState.present.imageParams,
+              gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
             },
             future: []
           }));
@@ -237,7 +256,8 @@ export const NonogramEditor: React.FC = () => {
       present: {
         gridStates: newGridStates,
         selectedPreset: currentState.present.selectedPreset,
-        imageParams: currentState.present.imageParams
+        imageParams: currentState.present.imageParams,
+        gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
       },
       future: []
     }));

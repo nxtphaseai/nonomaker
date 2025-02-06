@@ -3,8 +3,9 @@ import { ImageParams } from './types';
 
 interface ImageProcessingControlsProps {
   imageParams: ImageParams;
-  onParamChange: (param: keyof ImageParams, value: number) => void;
+  onParamChange: (param: keyof ImageParams, value: number) => Promise<void>;
   show: boolean;
+  processing: boolean;
 }
 
 export const ImageProcessingControls: React.FC<ImageProcessingControlsProps> = ({
