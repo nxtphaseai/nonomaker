@@ -89,10 +89,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     return hints.length ? hints : [{ count: 0, color: 'black' }];
   };
 
-  const getHintColor = (cells: string[]) => {
-    const filledCells = cells.filter(cell => cell !== 'none');
-    return filledCells.length > 0 && filledCells.every(cell => cell === 'red') ? 'text-red-500' : 'text-black';
-  };
+  
 
   const maxRowHints = Math.max(1, ...Array.from({ length: currentPreset.height }, (_, i) => getRowHints(i).length));
   const maxColHints = Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length));
@@ -124,29 +121,14 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   }
                   
                   if (isColumnHint) {
-                    const columnCells = grid.map(row => row[col]);
                     const hints = getColumnHints(col);
                     const hintIndex = hints.length - (maxColHints - gridRow);
                     
-                    let currentIndex = 0;
-                    let currentCount = 0;
-                    let hintCells: string[] = [];
-                    
-                    for (let i = 0; i < columnCells.length; i++) {
-                      if (columnCells[i] !== 'none') {
-                        currentCount++;
-                        hintCells.push(columnCells[i]);
-                      } else if (currentCount > 0) {
-                        if (currentIndex === hintIndex) {
-                          break;
-                        }
-                        currentIndex++;
-                        currentCount = 0;
-                        hintCells = [];
-                      }
-                    }
-                    
-                    const hintColor = getHintColor(hintCells);
+                    // Use the computed color from getColumnHints directly, similar to horizontal hints.
+                    const hintColor =
+                      hintIndex >= 0 && hintIndex < hints.length
+                        ? (hints[hintIndex].color === 'red' ? 'text-red-500' : 'text-black')
+                        : 'text-black';
                     
                     return (
                       <div 
@@ -160,18 +142,13 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   }
 
                   if (isRowHint) {
-                    const rowCells = grid[row];
                     const hints = getRowHints(row);
                     const hintIndex = gridCol - (maxRowHints - hints.length);
                     
-                    let startIndex = 0;
-                    for (let i = 0; i < hintIndex; i++) {
-                      startIndex += hints[i].count;
-                    }
-                    
+                    // Use the color already computed by getRowHints to determine the hint's style.
                     const hintColor =
                       hintIndex >= 0 && hintIndex < hints.length
-                        ? getHintColor(rowCells.slice(startIndex, startIndex + hints[hintIndex].count))
+                        ? (hints[hintIndex].color === 'red' ? 'text-red-500' : 'text-black')
                         : 'text-black';
                     
                     return (
@@ -215,8 +192,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
           ))}
         </div>
       </div>
-      <div className="text-sm text-gray-500 text-center">
-        <p>Press R for a red cell • Ctrl+Z to undo • Ctrl+X to redo</p>
+      <div className="text-sm text-gray-500 text-left">
+        <p>Press R for a red cell • Ctrl+Z to undo • Ctrl+Shift+Zto redo</p>
       </div>
     </div>
   );
