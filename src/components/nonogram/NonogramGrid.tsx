@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { GridPreset } from './types';
 
 interface NonogramGridProps {
@@ -21,6 +21,55 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   processing,
   onToggleCell,
 }) => {
+  // Add state for tracking mouse
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [lastCell, setLastCell] = useState<{ row: number; col: number } | null>(null);
+  // Add state for grid visibility
+  const [showGrid, setShowGrid] = useState(true);
+
+  // Add effect for handling 'T' key press
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 't') {
+        setShowGrid(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  // Handle mouse down event
+  const handleMouseDown = (row: number, col: number) => {
+    if (processing) return;
+    setIsDrawing(true);
+    onToggleCell(row, col);
+    setLastCell({ row, col });
+  };
+
+  // Handle mouse enter event while drawing
+  const handleMouseEnter = (row: number, col: number) => {
+    if (!isDrawing || processing) return;
+    
+    // Only toggle if we're entering a new cell
+    if (!lastCell || lastCell.row !== row || lastCell.col !== col) {
+      onToggleCell(row, col);
+      setLastCell({ row, col });
+    }
+  };
+
+  // Handle mouse up event
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+    setLastCell(null);
+  };
+
+  // Handle mouse leave event
+  const handleMouseLeave = () => {
+    setIsDrawing(false);
+    setLastCell(null);
+  };
+
   const getRowHints = (row: number) => {
     if (!grid || !grid[row]) return [{ count: 0, color: 'black' }];
     
@@ -95,7 +144,11 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   const maxColHints = Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length));
 
   return (
-    <div className="flex flex-col gap-2">
+    <div 
+      className="flex flex-col gap-2"
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="overflow-auto">
         <div 
           className="grid gap-0 min-w-fit"
@@ -168,9 +221,10 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   return (
                     <div
                       key={`${gridRow}-${gridCol}`}
-                      className="relative border border-gray-200 cursor-pointer transition-colors"
+                      className={`relative cursor-pointer transition-colors ${showGrid ? 'border border-gray-200' : ''}`}
                       style={{ width: cellSize, height: cellSize }}
-                      onClick={() => !processing && onToggleCell(row, col)}
+                      onMouseDown={() => handleMouseDown(row, col)}
+                      onMouseEnter={() => handleMouseEnter(row, col)}
                     >
                       {cellValue !== 'none' && (
                         <div
@@ -193,7 +247,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
         </div>
       </div>
       <div className="text-sm text-gray-500 text-left">
-        <p>Press R for a red cell • Ctrl+Z to undo • Ctrl+Shift+Zto redo</p>
+        <p>Press R for a red cell • Ctrl+Z to undo • Ctrl+Shift+Z to redo • Click and drag to draw • Press T to toggle grid</p>
       </div>
     </div>
   );
