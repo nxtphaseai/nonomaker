@@ -6,7 +6,7 @@ import { TextGenerationArea } from './TextGenerationArea';
 import { FileControls } from './FileControls';
 import { ImageProcessingControls } from './ImageProcessingControls';
 import { NonogramGrid } from './NonogramGrid';
-import { createEmptyGrid, processImageToGrid } from './utils';
+import { createEmptyGrid, processImageToGrid, exportGridToImage } from './utils';
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
 import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
 
@@ -451,6 +451,24 @@ export const NonogramEditor: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const currentGrid = undoRedoState.present.gridStates[undoRedoState.present.selectedPreset];
+      const dataUrl = await exportGridToImage(currentGrid);
+      
+      // Create download link
+      const downloadLink = document.createElement('a');
+      downloadLink.href = dataUrl;
+      downloadLink.download = `nonogram_${currentPreset.width}x${currentPreset.height}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    } catch (error) {
+      console.error('Error exporting grid:', error);
+      alert('Failed to export the nonogram as image.');
+    }
+  };
+
   return (
     <Card className="w-full max-w-[90vw] mx-auto p-4">
       <CardHeader className="text-center">
@@ -499,6 +517,7 @@ export const NonogramEditor: React.FC = () => {
               onFileUpload={handleFileUpload}
               onSave={handleSave}
               onLoad={handleLoad}
+              onExport={handleExport}
             />
 
             {originalImageData && (

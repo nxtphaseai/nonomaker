@@ -1,11 +1,12 @@
 import React from 'react';
-import { Upload, Save, FolderOpen } from 'lucide-react';
+import { Upload, Save, FolderOpen, Download } from 'lucide-react';
 
 interface FileControlsProps {
   imagePreview: string | null;
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
   onLoad: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onExport: () => void;
 }
 
 export const FileControls: React.FC<FileControlsProps> = ({
@@ -13,6 +14,7 @@ export const FileControls: React.FC<FileControlsProps> = ({
   onFileUpload,
   onSave,
   onLoad,
+  onExport,
 }) => {
   return (
     <div className="flex gap-4 bg-gray-50 p-4 rounded-lg">
@@ -56,6 +58,13 @@ export const FileControls: React.FC<FileControlsProps> = ({
             className="hidden"
           />
         </label>
+        <button
+          onClick={onExport}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+        >
+          <Download size={20} />
+          Export PNG
+        </button>
       </div>
     </div>
   );

@@ -109,3 +109,38 @@ export async function processImageToGrid(
     img.src = imageData;
   });
 }
+
+export function exportGridToImage(
+  grid: string[][],
+  cellSize: number = 20
+): Promise<string> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get canvas context');
+
+    // Set canvas size based on grid dimensions
+    const width = grid[0].length * cellSize;
+    const height = grid.length * cellSize;
+    canvas.width = width;
+    canvas.height = height;
+
+    // Fill white background
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw only filled cells
+    for (let y = 0; y < grid.length; y++) {
+      for (let x = 0; x < grid[y].length; x++) {
+        const cellValue = grid[y][x];
+        if (cellValue !== 'none') {
+          ctx.fillStyle = cellValue === 'black' ? 'black' : 'red';
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    // Convert canvas to data URL
+    resolve(canvas.toDataURL('image/png'));
+  });
+}
