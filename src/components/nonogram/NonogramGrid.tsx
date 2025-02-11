@@ -250,8 +250,17 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   return (
                     <div
                       key={`${gridRow}-${gridCol}`}
-                      className={`relative cursor-pointer transition-colors ${showGrid ? 'border border-gray-200' : ''}`}
-                      style={{ width: cellSize, height: cellSize, backgroundColor: cellValue === 'none' ? 'white' : cellValue }}
+                      className={`
+                        relative cursor-pointer
+                        ${showGrid ? 'border border-gray-200' : ''}
+                        before:absolute before:inset-0 before:opacity-0 before:transition-opacity
+                        hover:before:opacity-10 before:bg-black
+                      `}
+                      style={{ 
+                        width: cellSize, 
+                        height: cellSize, 
+                        backgroundColor: cellValue === 'none' ? 'white' : cellValue
+                      }}
                       onMouseDown={(e) => handleMouseDown(actualRow, actualCol, e)}
                       onMouseEnter={() => handleMouseEnter(actualRow, actualCol)}
                     />
