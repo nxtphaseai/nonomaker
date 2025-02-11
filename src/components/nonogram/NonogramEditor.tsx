@@ -532,6 +532,146 @@ export const NonogramEditor: React.FC = () => {
     }
   };
 
+  /**
+   * Global keydown listener for grid resizing shortcuts:
+   *
+   * Available modifiers for triggering a resize are:
+   *   - Control, or
+   *   - Meta (Command), or
+   *   - Alt.
+   *
+   * When combined with an Arrow key:
+   *   - Without Shift: Add a row or column.
+   *   - With Shift: Remove a row or column.
+   *
+   * The handler checks the modifier keys using getModifierState.
+   */
+  useEffect(() => {
+    const handleGridResizeKeyDown = (event: KeyboardEvent) => {
+      // Log key details for debugging.
+      console.log(
+        "Grid resize key pressed:",
+        event.key,
+        "Control:",
+        event.getModifierState("Control"),
+        "Meta:",
+        event.getModifierState("Meta"),
+        "Alt:",
+        event.getModifierState("Alt"),
+        "Shift:",
+        event.getModifierState("Shift")
+      );
+
+      // Only process arrow keys.
+      if (!event.key.startsWith("Arrow")) return;
+
+      // Check if at least one of the desired modifier keys is pressed.
+      const hasAcceptedModifier =
+        event.getModifierState("Control") ||
+        event.getModifierState("Meta") ||
+        event.getModifierState("Alt");
+
+      if (!hasAcceptedModifier) return;
+
+      // Prevent default behavior (such as scrolling) and stop propagation.
+      event.preventDefault();
+      event.stopPropagation();
+
+      // If Shift is held, then we're in removal mode.
+      const isRemoving = event.shiftKey;
+
+      setUndoRedoState((currentState) => {
+        // Get the current grid from the currently selected preset.
+        const currentPreset = currentState.present.selectedPreset;
+        const currentGrid = currentState.present.gridStates[currentPreset];
+        if (!currentGrid || currentGrid.length === 0) return currentState;
+
+        const currentHeight = currentGrid.length;
+        const currentWidth = currentGrid[0].length;
+        let newGrid = currentGrid;
+        let newHeight = currentHeight;
+        let newWidth = currentWidth;
+
+        if (event.key === "ArrowUp") {
+          if (isRemoving) {
+            // Remove the top row if possible.
+            if (currentHeight > 1) {
+              newGrid = currentGrid.slice(1);
+              newHeight = currentHeight - 1;
+            }
+          } else {
+            // Add an empty row at the top.
+            const emptyRow = new Array(currentWidth).fill("none");
+            newGrid = [emptyRow, ...currentGrid];
+            newHeight = currentHeight + 1;
+          }
+        } else if (event.key === "ArrowDown") {
+          if (isRemoving) {
+            // Remove the bottom row if possible.
+            if (currentHeight > 1) {
+              newGrid = currentGrid.slice(0, currentHeight - 1);
+              newHeight = currentHeight - 1;
+            }
+          } else {
+            // Add an empty row at the bottom.
+            const emptyRow = new Array(currentWidth).fill("none");
+            newGrid = [...currentGrid, emptyRow];
+            newHeight = currentHeight + 1;
+          }
+        } else if (event.key === "ArrowLeft") {
+          if (isRemoving) {
+            // Remove the leftmost column if possible.
+            if (currentWidth > 1) {
+              newGrid = currentGrid.map((row) => row.slice(1));
+              newWidth = currentWidth - 1;
+            }
+          } else {
+            // Add an empty column at the left.
+            newGrid = currentGrid.map((row) => ["none", ...row]);
+            newWidth = currentWidth + 1;
+          }
+        } else if (event.key === "ArrowRight") {
+          if (isRemoving) {
+            // Remove the rightmost column if possible.
+            if (currentWidth > 1) {
+              newGrid = currentGrid.map((row) => row.slice(0, currentWidth - 1));
+              newWidth = currentWidth - 1;
+            }
+          } else {
+            // Add an empty column at the right.
+            newGrid = currentGrid.map((row) => [...row, "none"]);
+            newWidth = currentWidth + 1;
+          }
+        }
+
+        // Update the custom preset dimensions so that the custom size fields are kept in sync.
+        GRID_PRESETS[0].width = newWidth;
+        GRID_PRESETS[0].height = newHeight;
+
+        return {
+          past: [...currentState.past, currentState.present],
+          present: {
+            ...currentState.present,
+            selectedPreset: 0, // Force the grid into the custom preset.
+            gridStates: {
+              ...currentState.present.gridStates,
+              0: newGrid,
+            },
+          },
+          future: [],
+        };
+      });
+
+      // Also update the dropdown to display the custom preset.
+      setDropdownPreset(0);
+    };
+
+    document.addEventListener("keydown", handleGridResizeKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleGridResizeKeyDown);
+    };
+  }, [setUndoRedoState, setDropdownPreset]);
+
   return (
     <Card className="w-full max-w-[90vw] mx-auto p-4">
       <CardHeader className="text-center">
