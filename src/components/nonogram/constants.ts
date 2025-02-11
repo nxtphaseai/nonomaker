@@ -1,4 +1,5 @@
 export const GRID_PRESETS = [
+  { label: 'Custom', width: 20, height: 20 },
   { label: '15×15', width: 15, height: 15 },
   { label: '15×20', width: 15, height: 20 },
   { label: '20×15', width: 20, height: 15 },

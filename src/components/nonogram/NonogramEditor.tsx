@@ -456,6 +456,30 @@ export const NonogramEditor: React.FC = () => {
     }
   };
 
+  // Add this handler function
+  const handleCustomSizeSet = (width: number, height: number) => {
+    // Create a new grid with custom dimensions
+    const newGrid = createEmptyGrid(width, height);
+    
+    // Update the first preset (Custom) with new dimensions
+    GRID_PRESETS[0].width = width;
+    GRID_PRESETS[0].height = height;
+    
+    // Update state with new grid
+    setUndoRedoState(currentState => ({
+      past: [...currentState.past, currentState.present],
+      present: {
+        ...currentState.present,
+        gridStates: {
+          ...currentState.present.gridStates,
+          0: newGrid
+        },
+        selectedPreset: 0
+      },
+      future: []
+    }));
+  };
+
   return (
     <Card className="w-full max-w-[90vw] mx-auto p-4">
       <CardHeader className="text-center">
@@ -481,6 +505,7 @@ export const NonogramEditor: React.FC = () => {
               presets={GRID_PRESETS}
               processing={processing}
               onPresetChange={handlePresetChange}
+              onCustomSizeSet={handleCustomSizeSet}
               onClear={handleClear}
             />
 
