@@ -284,16 +284,14 @@ export const NonogramEditor: React.FC = () => {
   };
 
   const toggleCell = useCallback(
-    (row: number, col: number) => {
+    (row: number, col: number, overrideColor?: string) => {
       setExportUrl(null);
       setUndoRedoState((currentState: any) => {
         const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
         const newGrid = currentGrid.map((r: string[], i: number) =>
           i === row
             ? r.map((cell: string, j: number) =>
-                j === col
-                  ? (cell === selectedColor ? 'none' : selectedColor)
-                  : cell
+                j === col ? (overrideColor ?? selectedColor) : cell
               )
             : r
         );
