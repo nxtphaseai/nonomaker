@@ -78,22 +78,10 @@ export const TextGenerationArea: React.FC<TextGenerationAreaProps> = ({
                     <img
                       src={url}
                       alt={`Generated image ${index + 1}`}
-                      className="w-full h-full object-cover cursor-pointer"
-                      onClick={() => window.open(url, '_blank')}
+                      className={`w-full h-full object-cover cursor-pointer 
+                        ${processing ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+                      onClick={() => !processing && onUseGeneratedImage(url)}
                     />
-                  </div>
-                  <div className="p-3 border-t border-gray-100">
-                    <button
-                      onClick={() => onUseGeneratedImage(url)}
-                      disabled={processing}
-                      className={`w-full py-2 px-4 bg-blue-500 text-white rounded-md 
-                        transition-colors shadow-sm text-sm font-medium
-                        ${processing 
-                          ? 'opacity-50 cursor-not-allowed' 
-                          : 'hover:bg-blue-600'}`}
-                    >
-                      {processing ? 'Processing...' : 'Use this image'}
-                    </button>
                   </div>
                 </div>
               ))}

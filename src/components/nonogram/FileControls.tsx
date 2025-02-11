@@ -8,6 +8,7 @@ interface FileControlsProps {
   onSave: () => void;
   onLoad: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onExport: () => void;
+  resolution?: number;
 }
 
 export const FileControls: React.FC<FileControlsProps> = ({
@@ -17,13 +18,19 @@ export const FileControls: React.FC<FileControlsProps> = ({
   onSave,
   onLoad,
   onExport,
+  resolution = 32,
 }) => {
   const handleDownload = () => {
     if (!exportUrl) return;
     
+    const randomLetters = Array(4)
+      .fill(0)
+      .map(() => String.fromCharCode(65 + Math.floor(Math.random() * 26)))
+      .join('');
+    
     const downloadLink = document.createElement('a');
     downloadLink.href = exportUrl;
-    downloadLink.download = `nonogram.bmp`;
+    downloadLink.download = `nonogram-${resolution}-${randomLetters}.bmp`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
