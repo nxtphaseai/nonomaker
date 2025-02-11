@@ -111,17 +111,16 @@ export async function processImageToGrid(
 }
 
 export function exportGridToImage(
-  grid: string[][],
-  cellSize: number = 20
+  grid: string[][]
 ): Promise<string> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get canvas context');
 
-    // Set canvas size based on grid dimensions
-    const width = grid[0].length * cellSize;
-    const height = grid.length * cellSize;
+    // Set canvas size to match grid dimensions exactly (1 pixel per cell)
+    const width = grid[0].length;
+    const height = grid.length;
     canvas.width = width;
     canvas.height = height;
 
@@ -129,18 +128,18 @@ export function exportGridToImage(
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, width, height);
 
-    // Draw only filled cells
+    // Draw cells at 1:1 pixel ratio
     for (let y = 0; y < grid.length; y++) {
       for (let x = 0; x < grid[y].length; x++) {
         const cellValue = grid[y][x];
         if (cellValue !== 'none') {
           ctx.fillStyle = cellValue === 'black' ? 'black' : 'red';
-          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+          ctx.fillRect(x, y, 1, 1);
         }
       }
     }
 
     // Convert canvas to data URL
-    resolve(canvas.toDataURL('image/png'));
+    resolve(canvas.toDataURL('image/bmp'));
   });
 }

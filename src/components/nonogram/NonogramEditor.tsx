@@ -69,11 +69,13 @@ export const NonogramEditor: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [textareaFocused, setTextareaFocused] = useState(false);
+  const [exportUrl, setExportUrl] = useState<string | null>(null);
 
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
   // Define handlers before useEffect
   const handleUndo = useCallback(() => {
+    setExportUrl(null); // Clear export URL on undo
     setUndoRedoState(currentState => {
       const { past, present, future } = currentState;
       if (past.length === 0) return currentState;
@@ -90,6 +92,7 @@ export const NonogramEditor: React.FC = () => {
   }, []);
 
   const handleRedo = useCallback(() => {
+    setExportUrl(null); // Clear export URL on redo
     setUndoRedoState(currentState => {
       const { past, present, future } = currentState;
       if (future.length === 0) return currentState;
@@ -141,37 +144,17 @@ export const NonogramEditor: React.FC = () => {
   }, [handleUndo, handleRedo]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    setExportUrl(null); // Clear export URL when uploading a new image
     const file = event.target.files?.[0];
     if (!file) return;
 
     setProcessing(true);
     try {
-      const imageUrl = await readFileAsDataURL(file);
-      const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
-      const newGrid = await processImageToGrid(
-        imageUrl,
-        currentPreset.width,
-        currentPreset.height,
-        undoRedoState.present.imageParams
-      );
-
-      setUndoRedoState(currentState => ({
-        past: [...currentState.past, currentState.present],
-        present: {
-          ...currentState.present,
-          gridStates: {
-            ...currentState.present.gridStates,
-            [currentState.present.selectedPreset]: newGrid
-          },
-          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
-        },
-        future: []
-      }));
-
-      setImagePreview(imageUrl);
-      setOriginalImageData(imageUrl);
+      const dataUrl = await readFileAsDataURL(file);
+      setImagePreview(dataUrl);
+      handleUseGeneratedImage(dataUrl);
     } catch (error) {
-      console.error('Error processing image:', error);
+      console.error('Error reading file:', error);
     } finally {
       setProcessing(false);
     }
@@ -244,27 +227,27 @@ export const NonogramEditor: React.FC = () => {
   };
 
   const handleClear = () => {
-    const newGridStates = {
-      ...undoRedoState.present.gridStates,
-      [undoRedoState.present.selectedPreset]: createEmptyGrid(
-        currentPreset.width,
-        currentPreset.height
-      )
-    };
+    setExportUrl(null); // Clear export URL when grid is cleared
+    const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
+    const emptyGrid = Array(currentPreset.height).fill(null).map(() =>
+      Array(currentPreset.width).fill('none')
+    );
 
     setUndoRedoState(currentState => ({
       past: [...currentState.past, currentState.present],
       present: {
-        gridStates: newGridStates,
-        selectedPreset: currentState.present.selectedPreset,
-        imageParams: currentState.present.imageParams,
-        gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+        ...currentState.present,
+        gridStates: {
+          ...currentState.present.gridStates,
+          [currentState.present.selectedPreset]: emptyGrid
+        }
       },
       future: []
     }));
   };
 
   const handlePresetChange = (presetIndex: number) => {
+    setExportUrl(null); // Clear export URL when grid size changes
     setUndoRedoState(currentState => {
       // If the grid doesn't exist for this preset, create it
       if (!currentState.present.gridStates[presetIndex]) {
@@ -288,6 +271,7 @@ export const NonogramEditor: React.FC = () => {
   };
 
   const toggleCell = (row: number, col: number) => {
+    setExportUrl(null); // Clear export URL when grid changes
     setUndoRedoState(currentState => {
       const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
       const newGrid = currentGrid.map((r, i) =>
@@ -421,6 +405,7 @@ export const NonogramEditor: React.FC = () => {
 
   const handleUseGeneratedImage = async (imageUrl: string) => {
     setProcessing(true);
+    setExportUrl(null); // Clear export URL when using a new generated image
     try {
       const dataUrl = await convertUrlToDataUrl(imageUrl);
       const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
@@ -456,14 +441,7 @@ export const NonogramEditor: React.FC = () => {
     try {
       const currentGrid = undoRedoState.present.gridStates[undoRedoState.present.selectedPreset];
       const dataUrl = await exportGridToImage(currentGrid);
-      
-      // Create download link
-      const downloadLink = document.createElement('a');
-      downloadLink.href = dataUrl;
-      downloadLink.download = `nonogram_${currentPreset.width}x${currentPreset.height}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      setExportUrl(dataUrl);
     } catch (error) {
       console.error('Error exporting grid:', error);
       alert('Failed to export the nonogram as image.');
@@ -516,6 +494,7 @@ export const NonogramEditor: React.FC = () => {
 
             <FileControls
               imagePreview={imagePreview}
+              exportUrl={exportUrl}
               onFileUpload={handleFileUpload}
               onSave={handleSave}
               onLoad={handleLoad}
