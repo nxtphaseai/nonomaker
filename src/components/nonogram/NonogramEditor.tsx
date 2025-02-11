@@ -9,6 +9,7 @@ import { NonogramGrid } from './NonogramGrid';
 import { createEmptyGrid, processImageToGrid, exportGridToImage } from './utils';
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
 import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
+import ColorPalette from './ColorPalette';
 
 // Add this interface after GridStates import
 interface UndoRedoState {
@@ -63,13 +64,14 @@ export const NonogramEditor: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [originalImageData, setOriginalImageData] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [isRKeyPressed, setIsRKeyPressed] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [generationText, setGenerationText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [textareaFocused, setTextareaFocused] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState('black');
+  const [isRKeyPressed, setIsRKeyPressed] = useState(false);
 
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
@@ -111,9 +113,6 @@ export const NonogramEditor: React.FC = () => {
   // Now use the handlers in useEffect
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'r') {
-        setIsRKeyPressed(true);
-      }
       // Add undo/redo keyboard shortcuts
       if (e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -128,8 +127,22 @@ export const NonogramEditor: React.FC = () => {
       }
     };
 
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleUndo, handleRedo]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'r' || e.key === 'R') {
+        setIsRKeyPressed(true);
+      }
+    };
+
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'r') {
+      if (e.key === 'r' || e.key === 'R') {
         setIsRKeyPressed(false);
       }
     };
@@ -141,7 +154,7 @@ export const NonogramEditor: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handleUndo, handleRedo]);
+  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setExportUrl(null); // Clear export URL when uploading a new image
@@ -270,40 +283,37 @@ export const NonogramEditor: React.FC = () => {
     });
   };
 
-  const toggleCell = (row: number, col: number) => {
-    setExportUrl(null); // Clear export URL when grid changes
-    setUndoRedoState(currentState => {
-      const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
-      const newGrid = currentGrid.map((r, i) =>
-        i === row
-          ? r.map((cell, j) =>
-              j === col
-                ? cell === 'none'
-                  ? isRKeyPressed
-                    ? 'red'
-                    : 'black'
-                  : cell === 'black'
-                  ? 'none'
-                  : 'none'
-                : cell
-            )
-          : r
-      );
+  const toggleCell = useCallback(
+    (row: number, col: number) => {
+      setExportUrl(null);
+      setUndoRedoState((currentState: any) => {
+        const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
+        const newGrid = currentGrid.map((r: string[], i: number) =>
+          i === row
+            ? r.map((cell: string, j: number) =>
+                j === col
+                  ? (cell === selectedColor ? 'none' : selectedColor)
+                  : cell
+              )
+            : r
+        );
 
-      return {
-        past: [...currentState.past, currentState.present],
-        present: {
-          ...currentState.present,
-          gridStates: {
-            ...currentState.present.gridStates,
-            [currentState.present.selectedPreset]: newGrid
+        return {
+          past: [...currentState.past, currentState.present],
+          present: {
+            ...currentState.present,
+            gridStates: {
+              ...currentState.present.gridStates,
+              [currentState.present.selectedPreset]: newGrid
+            },
+            gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
           },
-          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
-        },
-        future: []
-      };
-    });
-  };
+          future: []
+        };
+      });
+    },
+    [selectedColor]
+  );
 
   const handleParamChange = async (param: keyof ImageParams, value: number) => {
     if (!originalImageData) return;
@@ -481,6 +491,11 @@ export const NonogramEditor: React.FC = () => {
               onZoomChange={setZoom}
             />
 
+            <ColorPalette
+              selectedColor={selectedColor}
+              onColorSelect={setSelectedColor}
+            />
+
             <TextGenerationArea
               generationText={generationText}
               isGenerating={isGenerating}
@@ -515,14 +530,15 @@ export const NonogramEditor: React.FC = () => {
           <div className="w-3/4 sticky top-4">
             <NonogramGrid
               grid={undoRedoState.present.gridStates[undoRedoState.present.selectedPreset]}
-              currentPreset={currentPreset}
+              currentPreset={GRID_PRESETS[undoRedoState.present.selectedPreset]}
               zoom={zoom}
-              offsetX={0}
-              offsetY={0}
-              isRKeyPressed={isRKeyPressed}
+              offsetX={undoRedoState.present.gridParams?.offsetX || 0}
+              offsetY={undoRedoState.present.gridParams?.offsetY || 0}
               processing={processing}
               shortcutsEnabled={!textareaFocused}
               onToggleCell={toggleCell}
+              selectedColor={selectedColor}
+              isRKeyPressed={isRKeyPressed}
             />
           </div>
         </div>

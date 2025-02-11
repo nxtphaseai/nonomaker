@@ -11,14 +11,13 @@ interface NonogramGridProps {
   processing: boolean;
   shortcutsEnabled: boolean;
   onToggleCell: (row: number, col: number) => void;
+  selectedColor: string;
 }
 
 export const NonogramGrid: React.FC<NonogramGridProps> = ({
   grid,
   currentPreset,
   zoom,
-  offsetX,
-  offsetY,
   processing,
   shortcutsEnabled,
   onToggleCell,
@@ -78,71 +77,71 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     setLastCell(null);
   };
 
+  // Group consecutive cells of the same color in a row
   const getRowHints = (row: number) => {
     if (!grid || !grid[row]) return [{ count: 0, color: 'black' }];
-    
     const hints = [];
     let currentCount = 0;
-    let currentColor = null;
-    
-    for (let x = 0; x < grid[row].length; x++) {
-      const cell = grid[row][x];
-      
-      if (cell === 'none') {
-        if (currentCount > 0) {
+    let currentColor: string | null = null;
+
+    for (let col = 0; col < grid[row].length; col++) {
+      const cellColor = grid[row][col];
+      if (cellColor === 'none') {
+        if (currentCount > 0 && currentColor) {
           hints.push({ count: currentCount, color: currentColor });
-          currentCount = 0;
         }
+        currentCount = 0;
+        currentColor = null;
       } else {
-        if (currentCount > 0 && currentColor !== cell) {
+        // If color changes mid-stream, push what we had
+        if (currentColor && cellColor !== currentColor) {
           hints.push({ count: currentCount, color: currentColor });
           currentCount = 0;
         }
-        currentColor = cell;
+        currentColor = cellColor;
         currentCount++;
       }
     }
-    
-    // Handle remaining count at end of row
-    if (currentCount > 0) {
+
+    // End of the row
+    if (currentCount > 0 && currentColor) {
       hints.push({ count: currentCount, color: currentColor });
     }
-    
+
+    // If hints is empty, return [ {count: 0, color: 'black'} ]
     return hints.length ? hints : [{ count: 0, color: 'black' }];
   };
 
+  // Group consecutive cells of the same color in a column
   const getColumnHints = (col: number) => {
     if (!grid) return [{ count: 0, color: 'black' }];
-    
     const hints = [];
     let currentCount = 0;
-    let currentColor = null;
-    
-    for (let y = 0; y < grid.length; y++) {
-      if (!grid[y]) continue;
-      
-      const cell = grid[y][col];
-      
-      if (cell === 'none') {
-        if (currentCount > 0) {
+    let currentColor: string | null = null;
+
+    for (let row = 0; row < grid.length; row++) {
+      const cellColor = grid[row][col];
+      if (!cellColor || cellColor === 'none') {
+        if (currentCount > 0 && currentColor) {
           hints.push({ count: currentCount, color: currentColor });
-          currentCount = 0;
         }
+        currentCount = 0;
+        currentColor = null;
       } else {
-        if (currentCount > 0 && currentColor !== cell) {
+        if (currentColor && cellColor !== currentColor) {
           hints.push({ count: currentCount, color: currentColor });
           currentCount = 0;
         }
-        currentColor = cell;
+        currentColor = cellColor;
         currentCount++;
       }
     }
-    
-    // Handle remaining count at end of column
-    if (currentCount > 0) {
+
+    // End of the column
+    if (currentCount > 0 && currentColor) {
       hints.push({ count: currentCount, color: currentColor });
     }
-    
+
     return hints.length ? hints : [{ count: 0, color: 'black' }];
   };
 
@@ -187,16 +186,19 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   if (isColumnHint) {
                     const hints = getColumnHints(col);
                     const hintIndex = hints.length - (maxColHints - gridRow);
-                    const hintColor =
-                      hintIndex >= 0 && hintIndex < hints.length
-                        ? (hints[hintIndex].color === 'red' ? 'text-red-500' : 'text-black')
-                        : 'text-black';
-                    
                     return (
                       <div 
                         key={`${gridRow}-${gridCol}`} 
-                        className={`flex items-center justify-center ${hintColor}`}
-                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                        className="flex items-center justify-center"
+                        style={{ 
+                          width: `${zoom}rem`, 
+                          height: `${zoom}rem`,
+                          color: hints[hintIndex]?.color === 'none' ? 'black' : hints[hintIndex]?.color,
+                          // Add contrast for light colors
+                          textShadow: ['white', 'yellow', 'pink', 'cyan'].includes(hints[hintIndex]?.color) 
+                            ? '0 0 1px black' 
+                            : 'none'
+                        }}
                       >
                         {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex].count : ''}
                       </div>
@@ -206,16 +208,19 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                   if (isRowHint) {
                     const hints = getRowHints(row);
                     const hintIndex = gridCol - (maxRowHints - hints.length);
-                    const hintColor =
-                      hintIndex >= 0 && hintIndex < hints.length
-                        ? (hints[hintIndex].color === 'red' ? 'text-red-500' : 'text-black')
-                        : 'text-black';
-                    
                     return (
                       <div 
                         key={`${gridRow}-${gridCol}`} 
-                        className={`flex items-center justify-center ${hintColor}`}
-                        style={{ width: `${zoom}rem`, height: `${zoom}rem` }}
+                        className="flex items-center justify-center"
+                        style={{ 
+                          width: `${zoom}rem`, 
+                          height: `${zoom}rem`,
+                          color: hints[hintIndex]?.color === 'none' ? 'black' : hints[hintIndex]?.color,
+                          // Add contrast for light colors
+                          textShadow: ['white', 'yellow', 'pink', 'cyan'].includes(hints[hintIndex]?.color) 
+                            ? '0 0 1px black' 
+                            : 'none'
+                        }}
                       >
                         {hintIndex >= 0 && hintIndex < hints.length ? hints[hintIndex].count : ''}
                       </div>
@@ -237,23 +242,10 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                     <div
                       key={`${gridRow}-${gridCol}`}
                       className={`relative cursor-pointer transition-colors ${showGrid ? 'border border-gray-200' : ''}`}
-                      style={{ width: cellSize, height: cellSize }}
+                      style={{ width: cellSize, height: cellSize, backgroundColor: cellValue === 'none' ? 'white' : cellValue }}
                       onMouseDown={() => handleMouseDown(actualRow, actualCol)}
                       onMouseEnter={() => handleMouseEnter(actualRow, actualCol)}
-                    >
-                      {cellValue !== 'none' && (
-                        <div
-                          className={`absolute ${cellValue === 'black' ? 'bg-black' : 'bg-red-500'}`}
-                          style={{
-                            width: cellSize,
-                            height: cellSize,
-                            left: `${offsetX * zoom}rem`,
-                            top: `${offsetY * zoom}rem`,
-                            transition: 'all 0.1s ease-out'
-                          }}
-                        />
-                      )}
-                    </div>
+                    />
                   );
                 }
                 return null;

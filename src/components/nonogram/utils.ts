@@ -133,7 +133,7 @@ export function exportGridToImage(
       for (let x = 0; x < grid[y].length; x++) {
         const cellValue = grid[y][x];
         if (cellValue !== 'none') {
-          ctx.fillStyle = cellValue === 'black' ? 'black' : 'red';
+          ctx.fillStyle = cellValue;
           ctx.fillRect(x, y, 1, 1);
         }
       }
