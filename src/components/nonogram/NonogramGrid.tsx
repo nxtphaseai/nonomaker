@@ -18,7 +18,6 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   grid,
   currentPreset,
   zoom,
-  processing,
   shortcutsEnabled,
   onToggleCell,
 }) => {
