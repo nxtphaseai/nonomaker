@@ -73,6 +73,10 @@ export const NonogramEditor: React.FC = () => {
   const [selectedColor, setSelectedColor] = useState('black');
   const [isRKeyPressed, setIsRKeyPressed] = useState(false);
 
+  // Introduce a separate state to hold the dropdown's selected value.
+  // This prevents updating the grid resolution immediately when "Custom" is chosen.
+  const [dropdownPreset, setDropdownPreset] = useState<number>(undoRedoState.present.selectedPreset);
+
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
   // Define handlers before useEffect
@@ -259,28 +263,100 @@ export const NonogramEditor: React.FC = () => {
     }));
   };
 
+  /**
+   * Handles preset changes from the dropdown.
+   * - For non-custom presets: resizing happens immediately (with grid content preserved).
+   * - For the custom preset (index 0): only the dropdown state is updated; the grid remains unchanged.
+   */
   const handlePresetChange = (presetIndex: number) => {
-    setExportUrl(null); // Clear export URL when grid size changes
-    setUndoRedoState(currentState => {
-      // If the grid doesn't exist for this preset, create it
-      if (!currentState.present.gridStates[presetIndex]) {
-        const preset = GRID_PRESETS[presetIndex];
-        currentState.present.gridStates[presetIndex] = createEmptyGrid(
-          preset.width,
-          preset.height
-        );
-      }
+    if (presetIndex !== 0) {
+      // For non-custom presets, update both the dropdown and grid state.
+      setDropdownPreset(presetIndex);
+      setExportUrl(null); // Clear export URL when grid size changes.
+      setUndoRedoState(currentState => {
+        const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
+        const newPreset = GRID_PRESETS[presetIndex];
+        const oldPreset = GRID_PRESETS[currentState.present.selectedPreset];
+        
+        // Build a new grid while preserving existing content from the old grid.
+        const newGrid = Array(newPreset.height)
+          .fill(null)
+          .map((_, y) =>
+            Array(newPreset.width)
+              .fill(null)
+              .map((_, x) => {
+                if (y < oldPreset.height && x < oldPreset.width) {
+                  return currentGrid[y][x];
+                }
+                return 'none';
+              })
+          );
+        
+        return {
+          past: [...currentState.past, currentState.present],
+          present: {
+            ...currentState.present,
+            selectedPreset: presetIndex,
+            gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS,
+            gridStates: {
+              ...currentState.present.gridStates,
+              [presetIndex]: newGrid
+            }
+          },
+          future: []
+        };
+      });
+    } else {
+      // For the Custom preset, update only the dropdown selection.
+      // The grid remains unchanged until the user clicks the "Set" button.
+      setDropdownPreset(presetIndex);
+    }
+  };
 
+  /**
+   * Applies a custom grid size when the "Set" button is clicked.
+   * Resizes the grid according to the provided width and height,
+   * preserving any existing content (the top-left portion is retained).
+   */
+  const handleCustomSizeSet = (width: number, height: number) => {
+    setExportUrl(null);
+    setUndoRedoState(currentState => {
+      const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
+      const oldPreset = GRID_PRESETS[currentState.present.selectedPreset];
+      
+      // Create a custom grid using the new dimensions.
+      const newGrid = Array(height)
+        .fill(null)
+        .map((_, y) =>
+          Array(width)
+            .fill(null)
+            .map((_, x) => {
+              if (y < oldPreset.height && x < oldPreset.width) {
+                return currentGrid[y][x];
+              }
+              return 'none';
+            })
+        );
+      
+      // Update the custom preset dimensions.
+      GRID_PRESETS[0].width = width;
+      GRID_PRESETS[0].height = height;
+      
       return {
         past: [...currentState.past, currentState.present],
         present: {
           ...currentState.present,
-          selectedPreset: presetIndex,
-          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+          selectedPreset: 0,
+          gridStates: {
+            ...currentState.present.gridStates,
+            0: newGrid // Save the custom grid.
+          }
         },
         future: []
       };
     });
+    // Also reflect the custom preset selection in the dropdown.
+    setDropdownPreset(0);
   };
 
   const toggleCell = useCallback(
@@ -456,30 +532,6 @@ export const NonogramEditor: React.FC = () => {
     }
   };
 
-  // Add this handler function
-  const handleCustomSizeSet = (width: number, height: number) => {
-    // Create a new grid with custom dimensions
-    const newGrid = createEmptyGrid(width, height);
-    
-    // Update the first preset (Custom) with new dimensions
-    GRID_PRESETS[0].width = width;
-    GRID_PRESETS[0].height = height;
-    
-    // Update state with new grid
-    setUndoRedoState(currentState => ({
-      past: [...currentState.past, currentState.present],
-      present: {
-        ...currentState.present,
-        gridStates: {
-          ...currentState.present.gridStates,
-          0: newGrid
-        },
-        selectedPreset: 0
-      },
-      future: []
-    }));
-  };
-
   return (
     <Card className="w-full max-w-[90vw] mx-auto p-4">
       <CardHeader className="text-center">
@@ -501,7 +553,7 @@ export const NonogramEditor: React.FC = () => {
           {/* Controls Column */}
           <div className="w-1/4 flex flex-col gap-4 h-[calc(100vh-6rem)] overflow-y-auto">
             <GridControls
-              selectedPreset={undoRedoState.present.selectedPreset}
+              selectedPreset={dropdownPreset}
               presets={GRID_PRESETS}
               processing={processing}
               onPresetChange={handlePresetChange}
