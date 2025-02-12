@@ -5,15 +5,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 
 interface ImageProcessingControlsProps {
   imageParams: ImageParams;
-  onParamChange: (param: keyof ImageParams, value: number) => Promise<void>;
+  onParamChange: (param: string, value: number | boolean) => void;
   show: boolean;
-  processing: boolean;
+  processing?: boolean;
 }
 
 export const ImageProcessingControls: React.FC<ImageProcessingControlsProps> = ({
   imageParams,
   onParamChange,
   show,
+  processing = false,
 }) => {
   const [expandedSections, setExpandedSections] = useState({
     positionScale: true,
@@ -31,7 +32,7 @@ export const ImageProcessingControls: React.FC<ImageProcessingControlsProps> = (
   if (!show) return null;
 
   return (
-    <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+    <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
       <h4 className="text-sm font-medium mb-2">Image Processing</h4>
 
       {/* Position & Scale Section */}
@@ -149,6 +150,29 @@ export const ImageProcessingControls: React.FC<ImageProcessingControlsProps> = (
               onChange={(e) => onParamChange('contrast', parseFloat(e.target.value))}
               className="w-full"
             />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => onParamChange('inverted', !imageParams.inverted)}
+              disabled={processing}
+              className={`px-3 py-2 text-sm rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                ${imageParams.inverted 
+                  ? 'bg-gray-600 text-white hover:bg-gray-700' 
+                  : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+            >
+              {imageParams.inverted ? 'Normal' : 'Invert'}
+            </button>
+            
+            <button
+              onClick={() => onParamChange('flipped', !imageParams.flipped)}
+              disabled={processing}
+              className={`px-3 py-2 text-sm rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                ${imageParams.flipped 
+                  ? 'bg-gray-600 text-white hover:bg-gray-700' 
+                  : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+            >
+              {imageParams.flipped ? 'Normal' : 'Flip'}
+            </button>
           </div>
         </CollapsibleContent>
       </Collapsible>

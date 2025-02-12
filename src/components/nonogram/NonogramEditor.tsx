@@ -55,7 +55,11 @@ export const NonogramEditor: React.FC = () => {
       present: {
         gridStates: initialGridStates,
         selectedPreset: 0,
-        imageParams: DEFAULT_IMAGE_PARAMS,
+        imageParams: {
+          ...DEFAULT_IMAGE_PARAMS,
+          inverted: false,
+          flipped: false,
+        },
         gridParams: DEFAULT_GRID_PARAMS
       },
       future: []
@@ -395,42 +399,17 @@ export const NonogramEditor: React.FC = () => {
     [selectedColor]
   );
 
-  const handleParamChange = async (param: keyof ImageParams, value: number) => {
-    if (!originalImageData) return;
-
-    setProcessing(true);
-    try {
-      const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
-      const newImageParams = {
-        ...undoRedoState.present.imageParams,
-        [param]: value
-      };
-
-      const newGrid = await processImageToGrid(
-        originalImageData,
-        currentPreset.width,
-        currentPreset.height,
-        newImageParams
-      );
-
-      setUndoRedoState(currentState => ({
-        past: [...currentState.past, currentState.present],
-        present: {
-          ...currentState.present,
-          gridStates: {
-            ...currentState.present.gridStates,
-            [currentState.present.selectedPreset]: newGrid
-          },
-          imageParams: newImageParams,
-          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
-        },
-        future: []
-      }));
-    } catch (error) {
-      console.error('Error updating image parameters:', error);
-    } finally {
-      setProcessing(false);
-    }
+  const handleParamChange = (param: string, value: number | boolean) => {
+    setUndoRedoState({
+      ...undoRedoState,
+      present: {
+        ...undoRedoState.present,
+        imageParams: {
+          ...undoRedoState.present.imageParams,
+          [param]: value
+        }
+      }
+    });
   };
 
   const handleGenerate = async () => {

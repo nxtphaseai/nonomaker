@@ -15,6 +15,8 @@ export interface ImageParams {
   panY: number;
   stretchX: number;
   stretchY: number;
+  inverted: boolean;
+  flipped: boolean;
 }
 
 export interface GridStates {

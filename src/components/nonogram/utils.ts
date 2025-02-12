@@ -19,6 +19,8 @@ export async function processImageToGrid(
     panY: number;
     stretchX: number;
     stretchY: number;
+    inverted: boolean;
+    flipped: boolean;
   }
 ): Promise<string[][]> {
   const img = new Image();
@@ -34,9 +36,11 @@ export async function processImageToGrid(
         canvas.width = width;
         canvas.height = height;
 
-        // Fill canvas with white first
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, width, height);
+        // If flipped, flip the context horizontally before drawing
+        if (imageParams.flipped) {
+          ctx.translate(width, 0);
+          ctx.scale(-1, 1);
+        }
 
         // Calculate source rectangle based on zoom and stretch
         const sourceWidth = (img.width / imageParams.zoom) / imageParams.stretchX;
@@ -72,17 +76,28 @@ export async function processImageToGrid(
           destX, destY, destWidth, destHeight          // Destination rectangle
         );
         
+        // Reset transformation if needed
+        if (imageParams.flipped) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+
         const imageData = ctx.getImageData(0, 0, width, height);
         const newGrid = createEmptyGrid(width, height);
         
         for (let y = 0; y < height; y++) {
           for (let x = 0; x < width; x++) {
             const i = (y * width + x) * 4;
-            const brightness = (
+            let brightness = (
               imageData.data[i] * imageParams.redWeight + 
               imageData.data[i + 1] * imageParams.greenWeight + 
               imageData.data[i + 2] * imageParams.blueWeight
             ) * imageParams.contrast;
+
+            // Apply inversion if enabled
+            if (imageParams.inverted) {
+              brightness = 255 - brightness;
+            }
+
             newGrid[y][x] = brightness < imageParams.brightnessThreshold ? 'black' : 'none';
           }
         }
