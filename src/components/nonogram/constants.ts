@@ -32,7 +32,9 @@ export const DEFAULT_IMAGE_PARAMS = {
   panX: 0.5,
   panY: 0.5,
   stretchX: 1.0,
-  stretchY: 1.0
+  stretchY: 1.0,
+  inverted: false,
+  flipped: false
 } as const;
 
 export const API_ENDPOINT = 'https://my.orq.ai/v2/deployments/invoke';

@@ -4,16 +4,16 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface ImageProcessingControlsProps {
-  imageParams: ImageParams;
-  onParamChange: (param: string, value: number | boolean) => void;
   show: boolean;
+  imageParams: ImageParams;
+  onParamChange: (param: keyof ImageParams, value: number | boolean) => void;
   processing?: boolean;
 }
 
 export const ImageProcessingControls: React.FC<ImageProcessingControlsProps> = ({
+  show,
   imageParams,
   onParamChange,
-  show,
   processing = false,
 }) => {
   const [expandedSections, setExpandedSections] = useState({
