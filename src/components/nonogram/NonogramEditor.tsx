@@ -711,6 +711,15 @@ export const NonogramEditor: React.FC = () => {
               onColorSelect={setSelectedColor}
             />
 
+            {originalImageData && (
+              <ImageProcessingControls
+                show={true}
+                imageParams={undoRedoState.present.imageParams}
+                onParamChange={handleParamChange}
+                processing={processing}
+              />
+            )}
+
             <TextGenerationArea
               generationText={generationText}
               isGenerating={isGenerating}
@@ -730,15 +739,6 @@ export const NonogramEditor: React.FC = () => {
               onLoad={handleLoad}
               onExport={handleExport}
             />
-
-            {originalImageData && (
-              <ImageProcessingControls
-                show={true}
-                imageParams={undoRedoState.present.imageParams}
-                onParamChange={handleParamChange}
-                processing={processing}
-              />
-            )}
           </div>
 
           {/* Grid Column */}
