@@ -7,7 +7,72 @@
     <title>Nonomaker a.0.0.2</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="controls">
+        <details open>
+          <summary>Position & Scale</summary>
+          <div class="control-group">
+            <div class="control">
+              <label>Scale:</label>
+              <input type="range" id="scale" min="0.1" max="2" step="0.1" value="1">
+              <span id="scaleValue">1</span>
+            </div>
+            <div class="control">
+              <label>X Position:</label>
+              <input type="range" id="xPosition" min="-100" max="100" value="0">
+              <span id="xValue">0</span>
+            </div>
+            <div class="control">
+              <label>Y Position:</label>
+              <input type="range" id="yPosition" min="-100" max="100" value="0">
+              <span id="yValue">0</span>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Image Adjustments</summary>
+          <div class="control-group">
+            <div class="control">
+              <label>Brightness:</label>
+              <input type="range" id="brightness" min="0" max="200" value="100">
+              <span id="brightnessValue">100</span>
+            </div>
+            <div class="control">
+              <label>Contrast:</label>
+              <input type="range" id="contrast" min="0" max="200" value="100">
+              <span id="contrastValue">100</span>
+            </div>
+            <div class="control">
+              <label>Saturation:</label>
+              <input type="range" id="saturation" min="0" max="200" value="100">
+              <span id="saturationValue">100</span>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Color Weights</summary>
+          <div class="control-group">
+            <div class="control">
+              <label>Red Weight:</label>
+              <input type="range" id="redWeight" min="0" max="200" value="100">
+              <span id="redWeightValue">100</span>
+            </div>
+            <div class="control">
+              <label>Green Weight:</label>
+              <input type="range" id="greenWeight" min="0" max="200" value="100">
+              <span id="greenWeightValue">100</span>
+            </div>
+            <div class="control">
+              <label>Blue Weight:</label>
+              <input type="range" id="blueWeight" min="0" max="200" value="100">
+              <span id="blueWeightValue">100</span>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
