@@ -10,7 +10,7 @@ import { createEmptyGrid, processImageToGrid, exportGridToImage } from './utils'
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
 import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
 import ColorPalette from './ColorPalette';
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 
 // Add this interface after GridStates import
 interface UndoRedoState {
@@ -79,6 +79,9 @@ export const NonogramEditor: React.FC = () => {
   const [dropdownPreset, setDropdownPreset] = useState<number>(0);
 
   const [isControlsOpen, setIsControlsOpen] = useState(true);
+  const [controlsWidth, setControlsWidth] = useState(20); // Store width as percentage
+  const minWidth = 15; // Minimum width percentage
+  const maxWidth = 40; // Maximum width percentage
 
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
@@ -675,6 +678,33 @@ export const NonogramEditor: React.FC = () => {
     };
   }, [setUndoRedoState, setDropdownPreset]);
 
+  const handleResize = useCallback((e: MouseEvent) => {
+    const windowWidth = window.innerWidth;
+    const newWidth = (e.clientX / windowWidth) * 100;
+    
+    // Clamp the width between min and max values
+    const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+    setControlsWidth(clampedWidth);
+  }, []);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+
+    const handleMouseMove = (e: MouseEvent) => {
+      handleResize(e);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'ew-resize';
+  }, [handleResize]);
+
   return (
     <Card className="w-full h-screen flex flex-col">
       {/* Header with logos */}
@@ -695,8 +725,16 @@ export const NonogramEditor: React.FC = () => {
 
       {/* Main content area */}
       <CardContent className="flex-1 flex overflow-hidden">
-        {/* Controls Column - Collapsible */}
-        <div className={`${isControlsOpen ? 'w-1/5' : 'w-0'} relative border-r overflow-y-auto p-4 flex flex-col gap-4 transition-all duration-300`}>
+        {/* Controls Column - Resizable */}
+        <div 
+          className={`${isControlsOpen ? '' : 'w-0'} relative border-r overflow-y-auto p-4 flex flex-col gap-4`}
+          style={{ 
+            width: isControlsOpen ? `${controlsWidth}%` : '0%',
+            minWidth: isControlsOpen ? `${minWidth}%` : '0%',
+            maxWidth: `${maxWidth}%`,
+            transition: isControlsOpen ? 'none' : 'width 300ms' // Only animate when collapsing/expanding
+          }}
+        >
           {isControlsOpen && (
             <>
               <GridControls
@@ -750,14 +788,27 @@ export const NonogramEditor: React.FC = () => {
               />
             </>
           )}
+
+          {/* Resize Handle */}
+          {isControlsOpen && (
+            <div
+              className="absolute right-0 top-0 h-full w-1 cursor-ew-resize group"
+              onMouseDown={startResize}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 transform opacity-0 group-hover:opacity-100">
+                <GripVertical className="h-6 w-6 text-gray-400" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Collapse/Expand Handle */}
         <button
           onClick={() => setIsControlsOpen(!isControlsOpen)}
-          className="absolute left-[20%] top-1/2 -translate-y-1/2 transform z-10 bg-gray-200 hover:bg-gray-300 rounded-r-md p-1 transition-all duration-300 shadow-md"
+          className="absolute top-1/2 -translate-y-1/2 transform z-10 bg-gray-200 hover:bg-gray-300 rounded-r-md p-1 shadow-md"
           style={{
-            left: isControlsOpen ? '20%' : '0%'
+            left: isControlsOpen ? `${controlsWidth}%` : '0%',
+            transition: isControlsOpen ? 'none' : 'left 300ms' // Only animate when collapsing/expanding
           }}
         >
           {isControlsOpen ? (
@@ -767,8 +818,14 @@ export const NonogramEditor: React.FC = () => {
           )}
         </button>
 
-        {/* Grid Column - Expands when controls are collapsed */}
-        <div className={`${isControlsOpen ? 'w-4/5' : 'w-full'} p-4 flex overflow-hidden items-center justify-center transition-all duration-300`}>
+        {/* Grid Column - Adjusts to remaining space */}
+        <div 
+          className="p-4 flex items-center justify-center"
+          style={{ 
+            width: isControlsOpen ? `${100 - controlsWidth}%` : '100%',
+            transition: isControlsOpen ? 'none' : 'width 300ms' // Only animate when collapsing/expanding
+          }}
+        >
           <div className="flex flex-col gap-2 overflow-hidden">
             <NonogramGrid
               grid={undoRedoState.present.gridStates[undoRedoState.present.selectedPreset]}
