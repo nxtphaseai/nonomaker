@@ -53,7 +53,7 @@ export const NonogramEditor: React.FC = () => {
       past: [],
       present: {
         gridStates: initialGridStates,
-        selectedPreset: 3,
+        selectedPreset: 0,
         imageParams: DEFAULT_IMAGE_PARAMS,
         gridParams: DEFAULT_GRID_PARAMS
       },
@@ -75,7 +75,7 @@ export const NonogramEditor: React.FC = () => {
 
   // Introduce a separate state to hold the dropdown's selected value.
   // This prevents updating the grid resolution immediately when "Custom" is chosen.
-  const [dropdownPreset, setDropdownPreset] = useState<number>(undoRedoState.present.selectedPreset);
+  const [dropdownPreset, setDropdownPreset] = useState<number>(0);
 
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
