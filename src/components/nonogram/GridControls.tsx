@@ -18,8 +18,8 @@ export const GridControls: React.FC<GridControlsProps> = ({
   onCustomSizeSet,
   onClear,
 }) => {
-  const [customWidth, setCustomWidth] = useState('20');
-  const [customHeight, setCustomHeight] = useState('20');
+  const [customWidth, setCustomWidth] = useState('40');
+  const [customHeight, setCustomHeight] = useState('40');
 
   const handleSetCustomSize = () => {
     const width = Math.min(Math.max(parseInt(customWidth) || 20, 5), 100);
