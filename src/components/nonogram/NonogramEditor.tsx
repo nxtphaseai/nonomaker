@@ -10,6 +10,7 @@ import { createEmptyGrid, processImageToGrid, exportGridToImage } from './utils'
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
 import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
 import ColorPalette from './ColorPalette';
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Add this interface after GridStates import
 interface UndoRedoState {
@@ -76,6 +77,8 @@ export const NonogramEditor: React.FC = () => {
   // Introduce a separate state to hold the dropdown's selected value.
   // This prevents updating the grid resolution immediately when "Custom" is chosen.
   const [dropdownPreset, setDropdownPreset] = useState<number>(0);
+
+  const [isControlsOpen, setIsControlsOpen] = useState(true);
 
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
 
@@ -673,9 +676,10 @@ export const NonogramEditor: React.FC = () => {
   }, [setUndoRedoState, setDropdownPreset]);
 
   return (
-    <Card className="w-full max-w-[90vw] mx-auto p-4">
-      <CardHeader className="text-center">
-        <div className="flex justify-between items-center mb-4">
+    <Card className="w-full h-screen flex flex-col">
+      {/* Header with logos */}
+      <CardHeader className="border-b">
+        <div className="flex justify-between items-center px-4">
           <img 
             src="https://nxtphase.ai/images/logo.svg" 
             alt="Logo" 
@@ -688,63 +692,84 @@ export const NonogramEditor: React.FC = () => {
           />
         </div>
       </CardHeader>
-      <CardContent className="p-6">
-        <div className="flex gap-6">
-          {/* Controls Column */}
-          <div className="w-1/4 flex flex-col gap-4 h-[calc(100vh-6rem)] overflow-y-auto">
-            <GridControls
-              selectedPreset={dropdownPreset}
-              presets={GRID_PRESETS}
-              processing={processing}
-              onPresetChange={handlePresetChange}
-              onCustomSizeSet={handleCustomSizeSet}
-              onClear={handleClear}
-              customWidth={GRID_PRESETS[0].width.toString()}
-              customHeight={GRID_PRESETS[0].height.toString()}
-            />
 
-            <ZoomControl
-              zoom={zoom}
-              onZoomChange={setZoom}
-            />
-
-            <ColorPalette
-              selectedColor={selectedColor}
-              onColorSelect={setSelectedColor}
-            />
-
-            {originalImageData && (
-              <ImageProcessingControls
-                show={true}
-                imageParams={undoRedoState.present.imageParams}
-                onParamChange={handleParamChange}
+      {/* Main content area */}
+      <CardContent className="flex-1 flex overflow-hidden">
+        {/* Controls Column - Collapsible */}
+        <div className={`${isControlsOpen ? 'w-1/5' : 'w-0'} relative border-r overflow-y-auto p-4 flex flex-col gap-4 transition-all duration-300`}>
+          {isControlsOpen && (
+            <>
+              <GridControls
+                selectedPreset={dropdownPreset}
+                presets={GRID_PRESETS}
                 processing={processing}
+                onPresetChange={handlePresetChange}
+                onCustomSizeSet={handleCustomSizeSet}
+                onClear={handleClear}
+                customWidth={GRID_PRESETS[0].width.toString()}
+                customHeight={GRID_PRESETS[0].height.toString()}
               />
-            )}
 
-            <TextGenerationArea
-              generationText={generationText}
-              isGenerating={isGenerating}
-              processing={processing}
-              generatedImages={generatedImages}
-              onTextChange={setGenerationText}
-              onGenerate={handleGenerate}
-              onUseGeneratedImage={handleUseGeneratedImage}
-              onFocusChange={setTextareaFocused}
-            />
+              <ZoomControl
+                zoom={zoom}
+                onZoomChange={setZoom}
+              />
 
-            <FileControls
-              imagePreview={imagePreview}
-              exportUrl={exportUrl}
-              onFileUpload={handleFileUpload}
-              onSave={handleSave}
-              onLoad={handleLoad}
-              onExport={handleExport}
-            />
-          </div>
+              <ColorPalette
+                selectedColor={selectedColor}
+                onColorSelect={setSelectedColor}
+              />
 
-          {/* Grid Column */}
-          <div className="w-3/4 sticky top-4">
+              {originalImageData && (
+                <ImageProcessingControls
+                  show={true}
+                  imageParams={undoRedoState.present.imageParams}
+                  onParamChange={handleParamChange}
+                  processing={processing}
+                />
+              )}
+
+              <TextGenerationArea
+                generationText={generationText}
+                isGenerating={isGenerating}
+                processing={processing}
+                generatedImages={generatedImages}
+                onTextChange={setGenerationText}
+                onGenerate={handleGenerate}
+                onUseGeneratedImage={handleUseGeneratedImage}
+                onFocusChange={setTextareaFocused}
+              />
+
+              <FileControls
+                imagePreview={imagePreview}
+                exportUrl={exportUrl}
+                onFileUpload={handleFileUpload}
+                onSave={handleSave}
+                onLoad={handleLoad}
+                onExport={handleExport}
+              />
+            </>
+          )}
+        </div>
+
+        {/* Collapse/Expand Handle */}
+        <button
+          onClick={() => setIsControlsOpen(!isControlsOpen)}
+          className="absolute left-[20%] top-1/2 -translate-y-1/2 transform z-10 bg-gray-200 hover:bg-gray-300 rounded-r-md p-1 transition-all duration-300 shadow-md"
+          style={{
+            left: isControlsOpen ? '20%' : '0%'
+          }}
+        >
+          {isControlsOpen ? (
+            <ChevronLeft className="h-5 w-5 text-gray-600" />
+          ) : (
+            <ChevronRight className="h-5 w-5 text-gray-600" />
+          )}
+        </button>
+
+        {/* Grid Column - Expands when controls are collapsed */}
+        <div className={`${isControlsOpen ? 'w-4/5' : 'w-full'} p-4 flex overflow-hidden items-center justify-center transition-all duration-300`}>
+          <div className="flex flex-col gap-2 overflow-hidden">
             <NonogramGrid
               grid={undoRedoState.present.gridStates[undoRedoState.present.selectedPreset]}
               currentPreset={GRID_PRESETS[undoRedoState.present.selectedPreset]}

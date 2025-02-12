@@ -163,7 +163,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
       onMouseLeave={handleMouseLeave}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <div className="overflow-auto">
+      <div className="overflow-hidden">
         <div 
           className="grid gap-0 min-w-fit"
           style={{
@@ -251,7 +251,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
                     <div
                       key={`${gridRow}-${gridCol}`}
                       className={`
-                        relative cursor-pointer
+                        relative cursor-pointer overflow-hidden
                         ${showGrid ? 'border border-gray-200' : ''}
                         before:absolute before:inset-0 before:opacity-0 before:transition-opacity
                         hover:before:opacity-10 before:bg-black
