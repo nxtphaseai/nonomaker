@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GridPreset } from './types';
 
 interface GridControlsProps {
@@ -8,6 +8,8 @@ interface GridControlsProps {
   onPresetChange: (index: number) => void;
   onCustomSizeSet?: (width: number, height: number) => void;
   onClear: () => void;
+  customWidth: string;
+  customHeight: string;
 }
 
 export const GridControls: React.FC<GridControlsProps> = ({
@@ -17,13 +19,20 @@ export const GridControls: React.FC<GridControlsProps> = ({
   onPresetChange,
   onCustomSizeSet,
   onClear,
+  customWidth,
+  customHeight,
 }) => {
-  const [customWidth, setCustomWidth] = useState('40');
-  const [customHeight, setCustomHeight] = useState('40');
+  const [localCustomWidth, setLocalCustomWidth] = useState(customWidth);
+  const [localCustomHeight, setLocalCustomHeight] = useState(customHeight);
+
+  useEffect(() => {
+    setLocalCustomWidth(customWidth);
+    setLocalCustomHeight(customHeight);
+  }, [customWidth, customHeight]);
 
   const handleSetCustomSize = () => {
-    const width = Math.min(Math.max(parseInt(customWidth) || 20, 5), 100);
-    const height = Math.min(Math.max(parseInt(customHeight) || 20, 5), 100);
+    const width = Math.min(Math.max(parseInt(localCustomWidth) || 20, 5), 100);
+    const height = Math.min(Math.max(parseInt(localCustomHeight) || 20, 5), 100);
     onCustomSizeSet?.(width, height);
   };
 
@@ -57,8 +66,8 @@ export const GridControls: React.FC<GridControlsProps> = ({
         <div className="flex gap-2 items-center mt-2">
           <input
             type="number"
-            value={customWidth}
-            onChange={(e) => setCustomWidth(e.target.value)}
+            value={localCustomWidth}
+            onChange={(e) => setLocalCustomWidth(e.target.value)}
             min="5"
             max="100"
             className="w-20 px-3 py-2 rounded-md border border-gray-200"
@@ -67,8 +76,8 @@ export const GridControls: React.FC<GridControlsProps> = ({
           <span>×</span>
           <input
             type="number"
-            value={customHeight}
-            onChange={(e) => setCustomHeight(e.target.value)}
+            value={localCustomHeight}
+            onChange={(e) => setLocalCustomHeight(e.target.value)}
             min="5"
             max="100"
             className="w-20 px-3 py-2 rounded-md border border-gray-200"

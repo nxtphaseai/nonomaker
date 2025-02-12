@@ -699,6 +699,8 @@ export const NonogramEditor: React.FC = () => {
               onPresetChange={handlePresetChange}
               onCustomSizeSet={handleCustomSizeSet}
               onClear={handleClear}
+              customWidth={GRID_PRESETS[0].width.toString()}
+              customHeight={GRID_PRESETS[0].height.toString()}
             />
 
             <ZoomControl
