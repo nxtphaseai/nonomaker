@@ -8,6 +8,7 @@ interface GridControlsProps {
   onPresetChange: (index: number) => void;
   onCustomSizeSet?: (width: number, height: number) => void;
   onClear: () => void;
+  onInvert: () => void;
   customWidth: string;
   customHeight: string;
 }
@@ -19,6 +20,7 @@ export const GridControls: React.FC<GridControlsProps> = ({
   onPresetChange,
   onCustomSizeSet,
   onClear,
+  onInvert,
   customWidth,
   customHeight,
 }) => {
@@ -53,6 +55,13 @@ export const GridControls: React.FC<GridControlsProps> = ({
             </option>
           ))}
         </select>
+        <button
+          onClick={onInvert}
+          disabled={processing}
+          className="px-3 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-sm whitespace-nowrap"
+        >
+          Invert Grid
+        </button>
         <button
           onClick={onClear}
           disabled={processing}

@@ -543,6 +543,27 @@ export const NonogramEditor: React.FC = () => {
     }
   };
 
+  const handleInvert = () => {
+    setUndoRedoState(currentState => {
+      const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
+      const invertedGrid = currentGrid.map(row => 
+        row.map(cell => cell === 'none' ? 'black' : 'none')
+      );
+      
+      return {
+        past: [...currentState.past, currentState.present],
+        present: {
+          ...currentState.present,
+          gridStates: {
+            ...currentState.present.gridStates,
+            [currentState.present.selectedPreset]: invertedGrid
+          }
+        },
+        future: []
+      };
+    });
+  };
+
   /**
    * Global keydown listener for grid resizing shortcuts:
    *
@@ -749,6 +770,7 @@ export const NonogramEditor: React.FC = () => {
                 onPresetChange={handlePresetChange}
                 onCustomSizeSet={handleCustomSizeSet}
                 onClear={handleClear}
+                onInvert={handleInvert}
                 customWidth={GRID_PRESETS[0].width.toString()}
                 customHeight={GRID_PRESETS[0].height.toString()}
               />
