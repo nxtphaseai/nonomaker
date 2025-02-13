@@ -8,10 +8,14 @@ interface Shortcut {
 }
 
 const shortcuts: Shortcut[] = [
-  { key: 'Ctrl+Z', description: 'Undo' },
-  { key: 'Ctrl+Shift+Z', description: 'Redo' },
+  // Mouse controls
   { key: 'Click and drag', description: 'Draw' },
   { key: 'Right click', description: 'Delete' },
+  { key: 'Mouse wheel', description: 'Zoom' },
+  
+  // Keyboard controls
+  { key: 'Ctrl+Z', description: 'Undo' },
+  { key: 'Ctrl+Shift+Z', description: 'Redo' },
   { key: 'T', description: 'Toggle grid' },
   { key: 'H', description: 'Toggle hints' },
   { key: 'Ctrl+↑↓←→', description: 'Add row/column in direction' },
@@ -28,7 +32,7 @@ export const ShortcutsDialog: React.FC = () => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Keyboard Shortcuts</DialogTitle>
+          <DialogTitle>Mouse and Keyboard Shortcuts</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           {shortcuts.map((shortcut, index) => (

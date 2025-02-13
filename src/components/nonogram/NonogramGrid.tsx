@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GridPreset } from './types';
+import { ImageParams } from './types';
 
 interface NonogramGridProps {
   grid: string[][];
@@ -12,6 +13,8 @@ interface NonogramGridProps {
   shortcutsEnabled: boolean;
   onToggleCell: (row: number, col: number, overrideColor?: string) => void;
   selectedColor: string;
+  imageParams: ImageParams;
+  onImageParamChange: (param: keyof ImageParams, value: number) => void;
 }
 
 export const NonogramGrid: React.FC<NonogramGridProps> = ({
@@ -20,6 +23,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   zoom,
   shortcutsEnabled,
   onToggleCell,
+  imageParams,
+  onImageParamChange,
 }) => {
   // Add state for tracking mouse.
   const [isDrawing, setIsDrawing] = useState(false);
@@ -156,12 +161,43 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   const maxRowHints = showHints ? Math.max(1, ...Array.from({ length: currentPreset.height }, (_, i) => getRowHints(i).length)) : 0;
   const maxColHints = showHints ? Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length)) : 0;
 
+  // Add wheel handler for zoom control
+  const handleWheel = React.useCallback((e: React.WheelEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Only handle zoom if we have content
+    if (!grid || grid.length === 0) return;
+    
+    // Calculate new zoom value with increased sensitivity
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const newZoom = Math.min(Math.max(imageParams.zoom + delta, 1), 10); // Match the zoom range from ImageProcessingControls
+    
+    // Update zoom if changed
+    if (newZoom !== imageParams.zoom) {
+      onImageParamChange('zoom', newZoom);
+    }
+  }, [grid, imageParams.zoom, onImageParamChange]);
+
+  // Add useEffect to prevent default scroll behavior
+  React.useEffect(() => {
+    const preventScroll = (e: WheelEvent) => {
+      if (e.target instanceof Element && e.target.closest('.nonogram-grid')) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('wheel', preventScroll, { passive: false });
+    return () => window.removeEventListener('wheel', preventScroll);
+  }, []);
+
   return (
     <div 
-      className="flex flex-col gap-2"
+      className="relative flex flex-col items-center justify-center w-full h-full overflow-hidden nonogram-grid"
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
       onContextMenu={(e) => e.preventDefault()}
+      onWheel={handleWheel}
     >
       <div className="overflow-hidden">
         <div 

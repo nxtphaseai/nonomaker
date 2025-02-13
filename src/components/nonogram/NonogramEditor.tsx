@@ -396,49 +396,6 @@ export const NonogramEditor: React.FC = () => {
     [selectedColor]
   );
 
-  const handleParamChange = async (param: keyof ImageParams, value: number | boolean) => {
-    console.log('Parameter changed:', param, value);
-    setUndoRedoState(prev => ({
-      ...prev,
-      present: {
-        ...prev.present,
-        imageParams: {
-          ...prev.present.imageParams,
-          [param]: value
-        }
-      }
-    }));
-
-    if (originalImageData) {
-      const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
-      const newImageParams = {
-        ...undoRedoState.present.imageParams,
-        [param]: value
-      };
-
-      const newGrid = await processImageToGrid(
-        originalImageData,
-        currentPreset.width,
-        currentPreset.height,
-        newImageParams
-      );
-
-      setUndoRedoState(currentState => ({
-        past: [...currentState.past, currentState.present],
-        present: {
-          ...currentState.present,
-          gridStates: {
-            ...currentState.present.gridStates,
-            [currentState.present.selectedPreset]: newGrid
-          },
-          imageParams: newImageParams,
-          gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
-        },
-        future: []
-      }));
-    }
-  };
-
   const handleGenerate = async () => {
     if (!generationText.trim()) return;
     
@@ -732,6 +689,56 @@ export const NonogramEditor: React.FC = () => {
     document.body.style.cursor = 'ew-resize';
   }, [handleResize]);
 
+  const handleImageParamChange = async (param: keyof ImageParams, value: number | boolean) => {
+    // Update the image params
+    setUndoRedoState(prev => ({
+      ...prev,
+      present: {
+        ...prev.present,
+        imageParams: {
+          ...prev.present.imageParams,
+          [param]: value
+        }
+      }
+    }));
+
+    // If we have an image loaded, process it with the new params
+    if (originalImageData) {
+      setProcessing(true);
+      try {
+        const newGrid = await processImageToGrid(
+          originalImageData,
+          currentPreset.width,
+          currentPreset.height,
+          {
+            ...undoRedoState.present.imageParams,
+            [param]: value
+          }
+        );
+        setUndoRedoState(currentState => ({
+          past: [...currentState.past, currentState.present],
+          present: {
+            ...currentState.present,
+            gridStates: {
+              ...currentState.present.gridStates,
+              [currentState.present.selectedPreset]: newGrid
+            },
+            imageParams: {
+              ...currentState.present.imageParams,
+              [param]: value
+            },
+            gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+          },
+          future: []
+        }));
+      } catch (error) {
+        console.error('Error processing image:', error);
+      } finally {
+        setProcessing(false);
+      }
+    }
+  };
+
   return (
     <Card className="w-full h-screen flex flex-col">
       {/* Header with logos */}
@@ -790,7 +797,7 @@ export const NonogramEditor: React.FC = () => {
                 <ImageProcessingControls
                   show={true}
                   imageParams={undoRedoState.present.imageParams}
-                  onParamChange={handleParamChange}
+                  onParamChange={handleImageParamChange}
                   processing={processing}
                 />
               )}
@@ -865,6 +872,8 @@ export const NonogramEditor: React.FC = () => {
               shortcutsEnabled={!textareaFocused}
               onToggleCell={toggleCell}
               selectedColor={selectedColor}
+              imageParams={undoRedoState.present.imageParams}
+              onImageParamChange={handleImageParamChange}
               isRKeyPressed={isRKeyPressed}
             />
           </div>

@@ -152,16 +152,7 @@ export const ImageProcessingControls: React.FC<ImageProcessingControlsProps> = (
             />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => onParamChange('inverted', !imageParams.inverted)}
-              disabled={processing}
-              className={`px-3 py-2 text-sm rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-                ${imageParams.inverted 
-                  ? 'bg-gray-600 text-white hover:bg-gray-700' 
-                  : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-            >
-              {imageParams.inverted ? 'Normal' : 'Invert'}
-            </button>
+         
             
             <button
               onClick={() => onParamChange('flipped', !imageParams.flipped)}
