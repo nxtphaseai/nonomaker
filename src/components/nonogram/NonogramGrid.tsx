@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GridPreset } from './types';
 import { ImageParams } from './types';
 
@@ -14,7 +14,7 @@ interface NonogramGridProps {
   onToggleCell: (row: number, col: number, overrideColor?: string) => void;
   selectedColor: string;
   imageParams: ImageParams;
-  onImageParamChange: (param: keyof ImageParams, value: number) => void;
+  onImageParamChange: (param: keyof ImageParams, value: number | boolean) => void;
 }
 
 export const NonogramGrid: React.FC<NonogramGridProps> = ({
@@ -34,6 +34,10 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   const [showGrid, setShowGrid] = useState(true);
   // Add state for hint visibility
   const [showHints, setShowHints] = useState(true);
+  // Add state for panning
+  const [isPanning, setIsPanning] = useState(false);
+  const [lastPanPosition, setLastPanPosition] = useState<{ x: number, y: number } | null>(null);
+  const [isModifierPressed, setIsModifierPressed] = useState(false);
 
   // Modify the key press handler
   React.useEffect(() => {
@@ -51,9 +55,45 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [shortcutsEnabled]);
 
+  // Helper function to check if modifier key is pressed
+  const isModifierKeyPressed = (e: React.MouseEvent | KeyboardEvent) => {
+    return e.ctrlKey || e.metaKey; // Check for both Ctrl (Windows) and Command (Mac)
+  };
+
+  // Add useEffect to track modifier key state
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isModifierKeyPressed(e)) {
+        setIsModifierPressed(true);
+        document.querySelector('.nonogram-grid')?.classList.add('can-pan');
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!isModifierKeyPressed(e)) {
+        setIsModifierPressed(false);
+        document.querySelector('.nonogram-grid')?.classList.remove('can-pan');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   // Handle mouse down event
   const handleMouseDown = (row: number, col: number, e: React.MouseEvent) => {
-    e.preventDefault();
+    if (isModifierKeyPressed(e) && grid.length > 0) {
+      e.preventDefault();
+      setIsPanning(true);
+      setLastPanPosition({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
     if (e.button === 0) { // Left click
       setIsDrawing(true);
       onToggleCell(row, col);
@@ -76,8 +116,26 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     setLastCell({ row, col });
   };
 
+  // Handle mouse move for panning
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning || !lastPanPosition) return;
+
+    const deltaX = (e.clientX - lastPanPosition.x) / 300; // Adjusted sensitivity
+    const deltaY = (e.clientY - lastPanPosition.y) / 300;
+
+    const newPanX = Math.min(Math.max(imageParams.panX - deltaX, 0), 1);
+    const newPanY = Math.min(Math.max(imageParams.panY - deltaY, 0), 1);
+
+    onImageParamChange('panX', newPanX);
+    onImageParamChange('panY', newPanY);
+
+    setLastPanPosition({ x: e.clientX, y: e.clientY });
+  };
+
   // Handle mouse up event
   const handleMouseUp = () => {
+    setIsPanning(false);
+    setLastPanPosition(null);
     setIsDrawing(false);
     setIsErasing(false);
     setLastCell(null);
@@ -85,6 +143,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
 
   // Handle mouse leave event
   const handleMouseLeave = () => {
+    setIsPanning(false);
+    setLastPanPosition(null);
     setIsDrawing(false);
     setIsErasing(false);
     setLastCell(null);
@@ -193,12 +253,28 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
 
   return (
     <div 
-      className="relative flex flex-col items-center justify-center w-full h-full overflow-hidden nonogram-grid"
+      className={`
+        relative flex flex-col items-center justify-center w-full h-full overflow-hidden nonogram-grid
+        ${isPanning ? 'cursor-grabbing' : ''}
+        ${isModifierPressed ? 'cursor-grab' : ''}
+        ${isModifierPressed && isPanning ? 'cursor-grabbing' : ''}
+      `}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
       onContextMenu={(e) => e.preventDefault()}
       onWheel={handleWheel}
+      onMouseMove={handleMouseMove}
     >
+      <style>
+        {`
+          .nonogram-grid.can-pan {
+            cursor: grab !important;
+          }
+          .nonogram-grid.can-pan:active {
+            cursor: grabbing !important;
+          }
+        `}
+      </style>
       <div className="overflow-hidden">
         <div 
           className="grid gap-0 min-w-fit"

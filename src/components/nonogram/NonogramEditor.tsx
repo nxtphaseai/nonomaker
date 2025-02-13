@@ -690,7 +690,7 @@ export const NonogramEditor: React.FC = () => {
   }, [handleResize]);
 
   const handleImageParamChange = async (param: keyof ImageParams, value: number | boolean) => {
-    // Update the image params
+    // Update the image params in the undo/redo state
     setUndoRedoState(prev => ({
       ...prev,
       present: {
@@ -708,28 +708,24 @@ export const NonogramEditor: React.FC = () => {
       try {
         const newGrid = await processImageToGrid(
           originalImageData,
-          currentPreset.width,
-          currentPreset.height,
+          GRID_PRESETS[undoRedoState.present.selectedPreset].width,
+          GRID_PRESETS[undoRedoState.present.selectedPreset].height,
           {
             ...undoRedoState.present.imageParams,
             [param]: value
           }
         );
-        setUndoRedoState(currentState => ({
-          past: [...currentState.past, currentState.present],
+        
+        // Update the grid state in the undo/redo state
+        setUndoRedoState(prev => ({
+          ...prev,
           present: {
-            ...currentState.present,
+            ...prev.present,
             gridStates: {
-              ...currentState.present.gridStates,
-              [currentState.present.selectedPreset]: newGrid
-            },
-            imageParams: {
-              ...currentState.present.imageParams,
-              [param]: value
-            },
-            gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
-          },
-          future: []
+              ...prev.present.gridStates,
+              [prev.present.selectedPreset]: newGrid
+            }
+          }
         }));
       } catch (error) {
         console.error('Error processing image:', error);

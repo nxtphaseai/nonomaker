@@ -7,19 +7,23 @@ interface Shortcut {
   description: string;
 }
 
+const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+const modifierKey = isMac ? '⌘' : 'Ctrl';
+
 const shortcuts: Shortcut[] = [
   // Mouse controls
   { key: 'Click and drag', description: 'Draw' },
   { key: 'Right click', description: 'Delete' },
   { key: 'Mouse wheel', description: 'Zoom' },
+  { key: `${modifierKey} + Click and drag`, description: 'Pan image' },
   
   // Keyboard controls
-  { key: 'Ctrl+Z', description: 'Undo' },
-  { key: 'Ctrl+Shift+Z', description: 'Redo' },
+  { key: `${modifierKey}+Z`, description: 'Undo' },
+  { key: `${modifierKey}+Shift+Z`, description: 'Redo' },
   { key: 'T', description: 'Toggle grid' },
   { key: 'H', description: 'Toggle hints' },
-  { key: 'Ctrl+↑↓←→', description: 'Add row/column in direction' },
-  { key: 'Ctrl+Shift+↑↓←→', description: 'Remove row/column in direction' }
+  { key: `${modifierKey}+↑↓←→`, description: 'Add row/column in direction' },
+  { key: `${modifierKey}+Shift+↑↓←→`, description: 'Remove row/column in direction' }
 ];
 
 export const ShortcutsDialog: React.FC = () => {
