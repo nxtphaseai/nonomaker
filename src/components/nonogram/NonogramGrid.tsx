@@ -272,9 +272,6 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
           ))}
         </div>
       </div>
-      <div className="text-sm text-gray-500 text-left">
-        <p>Ctrl+Z to undo • Ctrl+Shift+Z to redo • Click and drag to draw • Right click to delete • Press T to toggle grid • Press H to toggle hints</p>
-      </div>
     </div>
   );
 };

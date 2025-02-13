@@ -11,6 +11,7 @@ import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './con
 import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
 import ColorPalette from './ColorPalette';
 import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import { ShortcutsDialog } from './ShortcutsDialog';
 
 // Add this interface after GridStates import
 interface UndoRedoState {
@@ -869,6 +870,7 @@ export const NonogramEditor: React.FC = () => {
           </div>
         </div>
       </CardContent>
+      <ShortcutsDialog />
     </Card>
   );
 };
