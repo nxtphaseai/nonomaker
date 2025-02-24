@@ -41,7 +41,7 @@ export const GridControls: React.FC<GridControlsProps> = ({
   return (
     <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
       <div className="flex gap-4 items-center w-full">
-        <label htmlFor="grid-preset" className="sr-only">Grid Size</label>
+        <label htmlFor="grid-preset" className="sr-only">Grid Size.</label>
         <select
           id="grid-preset"
           value={selectedPreset}
