@@ -67,7 +67,7 @@ export const GridControls: React.FC<GridControlsProps> = ({
           disabled={processing}
           className="px-3 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm whitespace-nowrap"
         >
-          Clear Grid
+          Clear Grid.
         </button>
       </div>
 
