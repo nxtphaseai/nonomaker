@@ -12,6 +12,7 @@ import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
 import ColorPalette from './ColorPalette';
 import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { Toaster } from "@/components/ui/toaster";
 
 // Add this interface after GridStates import
 interface UndoRedoState {
@@ -737,6 +738,7 @@ export const NonogramEditor: React.FC = () => {
 
   return (
     <Card className="w-full h-screen flex flex-col">
+      <Toaster />
       {/* Header with logos */}
       <CardHeader className="border-b">
         <div className="flex justify-between items-center px-4">

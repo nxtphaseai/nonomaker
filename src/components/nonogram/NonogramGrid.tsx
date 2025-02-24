@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GridPreset } from './types';
 import { ImageParams } from './types';
+import { toast } from "@/components/ui/use-toast";
 
 interface NonogramGridProps {
   grid: string[][];
@@ -33,14 +34,23 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   // Add state for grid visibility
   const [showGrid, setShowGrid] = useState(true);
   // Add state for hint visibility
-  const [showHints, setShowHints] = useState(true);
+  const [showHints, setShowHints] = useState(false);
   // Add state for panning
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState<{ x: number, y: number } | null>(null);
   const [isModifierPressed, setIsModifierPressed] = useState(false);
 
-  // Modify the key press handler
+  // Add toast notification to useEffect
   React.useEffect(() => {
+    if (!shortcutsEnabled) return;
+    
+    // Show initial toast
+    toast({
+      title: "Keyboard Shortcuts Available",
+      description: "Press 'H' to toggle hints visibility",
+      duration: 5000,
+    });
+
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!shortcutsEnabled) return;
       
