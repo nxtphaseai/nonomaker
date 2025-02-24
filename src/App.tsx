@@ -2,6 +2,7 @@ import { useRoutes } from 'react-router-dom';
 import routes from 'virtual:generated-pages-react';
 import Layout from './components/layout'; // Create a Layout component
 import './App.css'
+import Eval from './pages/Eval';
 
 function App() {
   // Add the default route explicitly
@@ -11,6 +12,7 @@ function App() {
       ...route,
       element: <Layout>{route.element}</Layout>,
     })),
+    { path: '/eval', element: <Eval /> },
   ];
 
   // Generate routes
