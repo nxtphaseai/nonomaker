@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GridPreset } from './types';
-import { Trash2, RefreshCw, Square } from "lucide-react";
+import { Trash2, Square } from "lucide-react";
 
 interface GridControlsProps {
   selectedPreset: number;
