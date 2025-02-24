@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GridPreset } from './types';
+import { Trash2, RefreshCw, Square } from "lucide-react";
 
 interface GridControlsProps {
   selectedPreset: number;
@@ -58,16 +59,21 @@ export const GridControls: React.FC<GridControlsProps> = ({
         <button
           onClick={onInvert}
           disabled={processing}
-          className="px-3 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-sm whitespace-nowrap"
+          className="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-sm"
+          title="Invert Grid"
         >
-          Invert Grid
+          <div className="flex gap-1">
+            <Square className="w-5 h-5 fill-white" />
+            <Square className="w-5 h-5" />
+          </div>
         </button>
         <button
           onClick={onClear}
           disabled={processing}
-          className="px-3 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm whitespace-nowrap"
+          className="p-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm"
+          title="Clear Grid"
         >
-          Clear Grid.
+          <Trash2 className="w-5 h-5" />
         </button>
       </div>
 
