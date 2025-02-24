@@ -8,9 +8,9 @@ import { ImageProcessingControls } from './ImageProcessingControls';
 import { NonogramGrid } from './NonogramGrid';
 import { createEmptyGrid, processImageToGrid, exportGridToImage } from './utils';
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
-import { GridStates, ImageParams, ApiResponse, GridParams } from './types';
+import { GridStates, ImageParams, ApiResponse, GridParams, Tool } from './types';
 import ColorPalette from './ColorPalette';
-import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Pencil, Eraser } from "lucide-react";
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -86,6 +86,9 @@ export const NonogramEditor: React.FC = () => {
   const maxWidth = 40; // Maximum width percentage
 
   const currentPreset = GRID_PRESETS[undoRedoState.present.selectedPreset];
+
+  // Add this state declaration with the other state declarations
+  const [selectedTool, setSelectedTool] = useState<Tool>('draw');
 
   // Define handlers before useEffect
   const handleUndo = useCallback(() => {
@@ -375,8 +378,12 @@ export const NonogramEditor: React.FC = () => {
         const newGrid = currentGrid.map((r: string[], i: number) =>
           i === row
             ? r.map((cell: string, j: number) =>
-                j === col ? (overrideColor ?? selectedColor) : cell
-              )
+                j === col 
+                  ? (selectedTool === 'erase' || overrideColor === 'none' 
+                      ? 'none' 
+                      : selectedColor)
+                : cell
+            )
             : r
         );
 
@@ -394,7 +401,7 @@ export const NonogramEditor: React.FC = () => {
         };
       });
     },
-    [selectedColor]
+    [selectedColor, selectedTool]
   );
 
   const handleGenerate = async () => {
@@ -781,44 +788,78 @@ export const NonogramEditor: React.FC = () => {
                 customHeight={GRID_PRESETS[0].height.toString()}
               />
 
-              <ZoomControl
-                zoom={zoom}
-                onZoomChange={setZoom}
-              />
-
-              <ColorPalette
-                selectedColor={selectedColor}
-                onColorSelect={setSelectedColor}
-              />
-
-              {originalImageData && (
-                <ImageProcessingControls
-                  show={true}
-                  imageParams={undoRedoState.present.imageParams}
-                  onParamChange={handleImageParamChange}
-                  processing={processing}
+              <div className="flex flex-col gap-4">
+                <ZoomControl
+                  zoom={zoom}
+                  onZoomChange={setZoom}
                 />
-              )}
 
-              <TextGenerationArea
-                generationText={generationText}
-                isGenerating={isGenerating}
-                processing={processing}
-                generatedImages={generatedImages}
-                onTextChange={setGenerationText}
-                onGenerate={handleGenerate}
-                onUseGeneratedImage={handleUseGeneratedImage}
-                onFocusChange={setTextareaFocused}
-              />
+                <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
+                  <label className="text-sm font-medium">Tools:</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedTool('draw')}
+                      className={`
+                        p-2 rounded-md transition-all
+                        ${selectedTool === 'draw' 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-white border border-gray-200 hover:bg-gray-50'
+                        }
+                      `}
+                      title="Draw Tool (D)"
+                    >
+                      <Pencil className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setSelectedTool('erase')}
+                      className={`
+                        p-2 rounded-md transition-all
+                        ${selectedTool === 'erase' 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-white border border-gray-200 hover:bg-gray-50'
+                        }
+                      `}
+                      title="Erase Tool (E)"
+                    >
+                      <Eraser className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
 
-              <FileControls
-                imagePreview={imagePreview}
-                exportUrl={exportUrl}
-                onFileUpload={handleFileUpload}
-                onSave={handleSave}
-                onLoad={handleLoad}
-                onExport={handleExport}
-              />
+                <ColorPalette
+                  selectedColor={selectedColor}
+                  onColorSelect={setSelectedColor}
+                />
+
+                {originalImageData && (
+                  <ImageProcessingControls
+                    show={true}
+                    imageParams={undoRedoState.present.imageParams}
+                    onParamChange={handleImageParamChange}
+                    processing={processing}
+                  />
+                )}
+
+                <TextGenerationArea
+                  generationText={generationText}
+                  isGenerating={isGenerating}
+                  processing={processing}
+                  generatedImages={generatedImages}
+                  onTextChange={setGenerationText}
+                  onGenerate={handleGenerate}
+                  onUseGeneratedImage={handleUseGeneratedImage}
+                  onFocusChange={setTextareaFocused}
+                />
+
+                <FileControls
+                  imagePreview={imagePreview}
+                  exportUrl={exportUrl}
+                  onFileUpload={handleFileUpload}
+                  onSave={handleSave}
+                  onLoad={handleLoad}
+                  onExport={handleExport}
+                />
+              </div>
             </>
           )}
 
