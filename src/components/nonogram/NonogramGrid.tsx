@@ -16,6 +16,8 @@ interface NonogramGridProps {
   selectedColor: string;
   imageParams: ImageParams;
   onImageParamChange: (param: keyof ImageParams, value: number | boolean) => void;
+  selectedTool: string;
+  onToggleMultipleCells: (cells: [number, number][], color: string) => void;
 }
 
 export const NonogramGrid: React.FC<NonogramGridProps> = ({
@@ -26,6 +28,9 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   onToggleCell,
   imageParams,
   onImageParamChange,
+  selectedTool,
+  selectedColor,
+  onToggleMultipleCells,
 }) => {
   // Add state for tracking mouse.
   const [isDrawing, setIsDrawing] = useState(false);
@@ -95,7 +100,43 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     };
   }, []);
 
-  // Handle mouse down event
+  // Add fillArea function before the handleMouseDown
+  const fillArea = (startX: number, startY: number, targetColor: string, newColor: string) => {
+    if (targetColor === newColor) return;
+    
+    const cellsToFill: [number, number][] = [];
+    const queue: [number, number][] = [[startX, startY]];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const [x, y] = queue.shift()!;
+      const key = `${x},${y}`;
+
+      if (
+        x < 0 || x >= grid[0].length ||
+        y < 0 || y >= grid.length ||
+        visited.has(key) ||
+        grid[y][x] !== targetColor
+      ) {
+        continue;
+      }
+
+      visited.add(key);
+      cellsToFill.push([y, x]); // Note: [row, col] order
+
+      queue.push(
+        [x + 1, y],
+        [x - 1, y],
+        [x, y + 1],
+        [x, y - 1]
+      );
+    }
+
+    // Update all cells at once
+    onToggleMultipleCells(cellsToFill, newColor);
+  };
+
+  // Modify handleMouseDown to include fill tool logic
   const handleMouseDown = (row: number, col: number, e: React.MouseEvent) => {
     if (isModifierKeyPressed(e) && grid.length > 0) {
       e.preventDefault();
@@ -105,8 +146,13 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     }
 
     if (e.button === 0) { // Left click
-      setIsDrawing(true);
-      onToggleCell(row, col);
+      if (selectedTool === 'fill') {
+        const targetColor = grid[row][col];
+        fillArea(col, row, targetColor, selectedColor);
+      } else {
+        setIsDrawing(true);
+        onToggleCell(row, col, selectedColor);
+      }
     } else if (e.button === 2) { // Right click
       setIsErasing(true);
       onToggleCell(row, col, 'none');

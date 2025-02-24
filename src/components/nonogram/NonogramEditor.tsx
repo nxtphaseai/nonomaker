@@ -10,7 +10,7 @@ import { createEmptyGrid, processImageToGrid, exportGridToImage } from './utils'
 import { GRID_PRESETS, DEFAULT_IMAGE_PARAMS, API_ENDPOINT, API_KEY } from './constants';
 import { GridStates, ImageParams, ApiResponse, GridParams, Tool } from './types';
 import ColorPalette from './ColorPalette';
-import { ChevronLeft, ChevronRight, GripVertical, Pencil, Eraser } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Pencil, Eraser, Droplet } from "lucide-react";
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -402,6 +402,35 @@ export const NonogramEditor: React.FC = () => {
       });
     },
     [selectedColor, selectedTool]
+  );
+
+  const toggleMultipleCells = useCallback(
+    (cellsToToggle: [number, number][], newColor: string) => {
+      setExportUrl(null);
+      setUndoRedoState((currentState: any) => {
+        const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
+        const newGrid = currentGrid.map((r: string[]) => [...r]);
+        
+        // Update all cells at once
+        for (const [row, col] of cellsToToggle) {
+          newGrid[row][col] = newColor;
+        }
+
+        return {
+          past: [...currentState.past, currentState.present],
+          present: {
+            ...currentState.present,
+            gridStates: {
+              ...currentState.present.gridStates,
+              [currentState.present.selectedPreset]: newGrid
+            },
+            gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
+          },
+          future: []
+        };
+      });
+    },
+    []
   );
 
   const handleGenerate = async () => {
@@ -823,6 +852,19 @@ export const NonogramEditor: React.FC = () => {
                     >
                       <Eraser className="w-5 h-5" />
                     </button>
+                    <button
+                      onClick={() => setSelectedTool('fill')}
+                      className={`
+                        p-2 rounded-md transition-all
+                        ${selectedTool === 'fill' 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-white border border-gray-200 hover:bg-gray-50'
+                        }
+                      `}
+                      title="Fill Tool (F)"
+                    >
+                      <Droplet className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
 
@@ -910,6 +952,8 @@ export const NonogramEditor: React.FC = () => {
               processing={processing}
               shortcutsEnabled={!textareaFocused}
               onToggleCell={toggleCell}
+              onToggleMultipleCells={toggleMultipleCells}
+              selectedTool={selectedTool}
               selectedColor={selectedColor}
               imageParams={undoRedoState.present.imageParams}
               onImageParamChange={handleImageParamChange}

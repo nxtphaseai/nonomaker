@@ -43,4 +43,4 @@ export interface GridParams {
   offsetY: number;
 }
 
-export type Tool = 'draw' | 'erase';
+export type Tool = 'draw' | 'erase' | 'fill';
