@@ -56,6 +56,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   const [internalContentOffset, setInternalContentOffset] = useState({ x: 0, y: 0 });
   const [isDraggingContent, setIsDraggingContent] = useState(false);
   const [lastContentDragPosition, setLastContentDragPosition] = useState<{ x: number, y: number } | null>(null);
+  // Add a buffer state to store cells that move outside the viewport
+  const [offScreenBuffer, setOffScreenBuffer] = useState<Map<string, string>>(new Map());
 
   // Use external state if provided, otherwise use internal state
   const contentOffset = externalContentOffset || internalContentOffset;
@@ -445,7 +447,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [shortcutsEnabled]);
 
-  // Update the shiftGridContent function with better fallbacks for undefined values
+  // Update the shiftGridContent function to preserve off-screen content
   const shiftGridContent = (deltaX: number, deltaY: number) => {
     // Ensure we have valid delta values
     const dx = typeof deltaX === 'number' && !isNaN(deltaX) ? deltaX : 0;
@@ -459,12 +461,13 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     // Create array to track cell changes
     const cellsToToggle: { row: number; col: number; color: string }[] = [];
     
-    // Map to track cells we've already processed to avoid duplicates
-    const processedCells = new Map<string, boolean>();
+    // Create a new buffer for off-screen cells
+    const newOffScreenBuffer = new Map(offScreenBuffer);
     
-    // First pass: collect all filled cells
+    // First pass: collect all filled cells (both from grid and buffer)
     const filledCells: { row: number; col: number; color: string }[] = [];
     
+    // Add cells from the grid
     for (let row = 0; row < grid.length; row++) {
       const gridRow = grid[row];
       if (!gridRow || !Array.isArray(gridRow)) continue;
@@ -473,42 +476,51 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
         const cellColor = gridRow[col];
         if (cellColor && cellColor !== 'none') {
           filledCells.push({ row, col, color: cellColor });
+          
+          // Clear this cell in the grid
+          cellsToToggle.push({ row, col, color: 'none' });
         }
       }
     }
     
-    // Clear all filled cells first
-    filledCells.forEach(cell => {
-      cellsToToggle.push({ row: cell.row, col: cell.col, color: 'none' });
+    // Add cells from the off-screen buffer
+    offScreenBuffer.forEach((color, key) => {
+      const [rowStr, colStr] = key.split(',');
+      const row = parseInt(rowStr, 10);
+      const col = parseInt(colStr, 10);
+      if (!isNaN(row) && !isNaN(col)) {
+        filledCells.push({ row, col, color });
+      }
     });
     
-    // Then add cells at their new positions
+    // Clear the off-screen buffer as we're rebuilding it
+    newOffScreenBuffer.clear();
+    
+    // Process each filled cell to its new position
     filledCells.forEach(cell => {
       const newRow = cell.row + dy;
       const newCol = cell.col + dx;
       
-      // Check if the new position is within bounds
+      // Check if the new position is within grid bounds
       if (newRow >= 0 && newRow < grid.length && 
           newCol >= 0 && grid[0] && newCol < grid[0].length) {
-        
-        // Create a unique key for this cell to avoid duplicates
-        const cellKey = `${newRow},${newCol}`;
-        
-        // Only add if we haven't processed this cell yet
-        if (!processedCells.has(cellKey)) {
-          cellsToToggle.push({ 
-            row: newRow, 
-            col: newCol, 
-            color: cell.color 
-          });
-          processedCells.set(cellKey, true);
-        }
+        // Add to grid changes
+        cellsToToggle.push({ 
+          row: newRow, 
+          col: newCol, 
+          color: cell.color 
+        });
+      } else {
+        // Store in off-screen buffer
+        newOffScreenBuffer.set(`${newRow},${newCol}`, cell.color);
       }
     });
     
-    // Apply all changes at once if there are any
+    // Update the off-screen buffer
+    setOffScreenBuffer(newOffScreenBuffer);
+    
+    // Apply all grid changes at once
     if (cellsToToggle.length > 0) {
-      console.log('Applying cell changes:', cellsToToggle);
       onToggleMultipleCells(cellsToToggle);
       
       // Force hint recalculation

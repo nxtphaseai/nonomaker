@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, CornerUpLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface ContentMoveControlsProps {
   contentOffset: { x: number, y: number };
@@ -10,10 +10,18 @@ export const ViewportControls: React.FC<ContentMoveControlsProps> = ({
   contentOffset,
   onContentOffsetChange,
 }) => {
+  // Ensure contentOffset is always a valid object
+  const safeOffset = contentOffset || { x: 0, y: 0 };
+  
   const handleMove = (direction: 'up' | 'down' | 'left' | 'right') => {
+    // Provide fallbacks for undefined values
     const step = 1; // Move by 1 cell at a time
     
-    let newOffset = { ...contentOffset };
+    // Create a new object to avoid mutation
+    let newOffset = { 
+      x: typeof safeOffset.x === 'number' ? safeOffset.x : 0,
+      y: typeof safeOffset.y === 'number' ? safeOffset.y : 0
+    };
     
     switch (direction) {
       case 'up':
@@ -30,7 +38,10 @@ export const ViewportControls: React.FC<ContentMoveControlsProps> = ({
         break;
     }
     
-    onContentOffsetChange(newOffset);
+    // Ensure we're passing a valid object to the callback
+    if (typeof onContentOffsetChange === 'function') {
+      onContentOffsetChange(newOffset);
+    }
   };
 
   return (
@@ -59,15 +70,8 @@ export const ViewportControls: React.FC<ContentMoveControlsProps> = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
           
-          <div className="w-10 h-10 flex items-center justify-center">
-            <button
-              onClick={() => onContentOffsetChange({ x: 0, y: 0 })}
-              className="p-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50"
-              title="Reset content position"
-            >
-              <CornerUpLeft className="w-4 h-4" />
-            </button>
-          </div>
+          {/* Empty space where the middle icon was */}
+          <div className="w-10 h-10"></div>
           
           <button
             onClick={() => handleMove('right')}
