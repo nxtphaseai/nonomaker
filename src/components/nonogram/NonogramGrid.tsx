@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GridPreset } from './types';
 import { ImageParams } from './types';
 import { toast } from "@/components/ui/use-toast";
@@ -18,6 +18,8 @@ interface NonogramGridProps {
   onImageParamChange: (param: keyof ImageParams, value: number | boolean) => void;
   selectedTool: string;
   onToggleMultipleCells: (cells: [number, number][], color: string) => void;
+  contentOffset?: { x: number, y: number };
+  onContentOffsetChange?: (offset: { x: number, y: number }) => void;
 }
 
 export const NonogramGrid: React.FC<NonogramGridProps> = ({
@@ -31,6 +33,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   selectedTool,
   selectedColor,
   onToggleMultipleCells,
+  contentOffset: externalContentOffset,
+  onContentOffsetChange,
 }) => {
   // Add state for tracking mouse.
   const [isDrawing, setIsDrawing] = useState(false);
@@ -44,6 +48,66 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState<{ x: number, y: number } | null>(null);
   const [isModifierPressed, setIsModifierPressed] = useState(false);
+  // Add state for viewport position
+  const [viewportOffset, setViewportOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingViewport, setIsDraggingViewport] = useState(false);
+  const [lastDragPosition, setLastDragPosition] = useState<{ x: number, y: number } | null>(null);
+  // Add state for content offset
+  const [internalContentOffset, setInternalContentOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingContent, setIsDraggingContent] = useState(false);
+  const [lastContentDragPosition, setLastContentDragPosition] = useState<{ x: number, y: number } | null>(null);
+
+  // Use external state if provided, otherwise use internal state
+  const contentOffset = externalContentOffset || internalContentOffset;
+  
+  // Make sure previousContentOffset is initialized
+  const previousContentOffset = useRef<{ x: number, y: 0 }>({ x: 0, y: 0 });
+  
+  // Update the useEffect that handles content offset changes
+  useEffect(() => {
+    if (!externalContentOffset) return;
+    
+    // Ensure we have valid numbers
+    const currentX = typeof externalContentOffset.x === 'number' ? externalContentOffset.x : 0;
+    const currentY = typeof externalContentOffset.y === 'number' ? externalContentOffset.y : 0;
+    
+    // Only proceed if there's an actual change
+    if (currentX === 0 && currentY === 0) return;
+    
+    // Store the current values before resetting
+    const deltaX = currentX;
+    const deltaY = currentY;
+    
+    // Apply the content shift
+    shiftGridContent(deltaX, deltaY);
+    
+    // Reset the content offset after shifting
+    // Use a small delay to avoid state update conflicts
+    if (onContentOffsetChange) {
+      setTimeout(() => {
+        onContentOffsetChange({ x: 0, y: 0 });
+      }, 50);
+    }
+    
+  }, [externalContentOffset]);
+
+  // Update the setContentOffset function to use the prop callback if available
+  const setContentOffset = (newOffset: { x: number, y: number } | ((prev: { x: number, y: number }) => { x: number, y: number })) => {
+    if (typeof newOffset === 'function') {
+      const calculatedOffset = newOffset(contentOffset);
+      if (onContentOffsetChange) {
+        onContentOffsetChange(calculatedOffset);
+      } else {
+        setInternalContentOffset(calculatedOffset);
+      }
+    } else {
+      if (onContentOffsetChange) {
+        onContentOffsetChange(newOffset);
+      } else {
+        setInternalContentOffset(newOffset);
+      }
+    }
+  };
 
   // Add toast notification to useEffect
   React.useEffect(() => {
@@ -52,7 +116,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     // Show initial toast
     toast({
       title: "Keyboard Shortcuts Available",
-      description: "Press 'H' to toggle hints visibility",
+      description: "ex: Press 'H' to toggle hints visibility, see more.",
       duration: 5000,
     });
 
@@ -136,8 +200,30 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     onToggleMultipleCells(cellsToFill, newColor);
   };
 
-  // Modify handleMouseDown to include fill tool logic
+  // Function to handle viewport movement
+  const handleViewportDrag = (e: React.MouseEvent) => {
+    if (!isDraggingViewport || !lastDragPosition) return;
+
+    const deltaX = e.clientX - lastDragPosition.x;
+    const deltaY = e.clientY - lastDragPosition.y;
+
+    setViewportOffset(prev => ({
+      x: prev.x + deltaX,
+      y: prev.y + deltaY
+    }));
+
+    setLastDragPosition({ x: e.clientX, y: e.clientY });
+  };
+
+  // Modify handleMouseDown to include viewport dragging
   const handleMouseDown = (row: number, col: number, e: React.MouseEvent) => {
+    if (e.altKey) { // Use Alt key for viewport movement
+      e.preventDefault();
+      setIsDraggingViewport(true);
+      setLastDragPosition({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
     if (isModifierKeyPressed(e) && grid.length > 0) {
       e.preventDefault();
       setIsPanning(true);
@@ -145,7 +231,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
       return;
     }
 
-    if (e.button === 0) { // Left click
+    if (e.button === 0) {
       if (selectedTool === 'fill') {
         const targetColor = grid[row][col];
         fillArea(col, row, targetColor, selectedColor);
@@ -153,7 +239,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
         setIsDrawing(true);
         onToggleCell(row, col, selectedColor);
       }
-    } else if (e.button === 2) { // Right click
+    } else if (e.button === 2) {
       setIsErasing(true);
       onToggleCell(row, col, 'none');
     }
@@ -172,11 +258,16 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     setLastCell({ row, col });
   };
 
-  // Handle mouse move for panning
+  // Modify handleMouseMove to include viewport dragging
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDraggingViewport) {
+      handleViewportDrag(e);
+      return;
+    }
+
     if (!isPanning || !lastPanPosition) return;
 
-    const deltaX = (e.clientX - lastPanPosition.x) / 300; // Adjusted sensitivity
+    const deltaX = (e.clientX - lastPanPosition.x) / 300;
     const deltaY = (e.clientY - lastPanPosition.y) / 300;
 
     const newPanX = Math.min(Math.max(imageParams.panX - deltaX, 0), 1);
@@ -188,22 +279,26 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     setLastPanPosition({ x: e.clientX, y: e.clientY });
   };
 
-  // Handle mouse up event
+  // Modify handleMouseUp to include viewport dragging
   const handleMouseUp = () => {
     setIsPanning(false);
     setLastPanPosition(null);
     setIsDrawing(false);
     setIsErasing(false);
     setLastCell(null);
+    setIsDraggingViewport(false);
+    setLastDragPosition(null);
   };
 
-  // Handle mouse leave event
+  // Modify handleMouseLeave to include viewport dragging
   const handleMouseLeave = () => {
     setIsPanning(false);
     setLastPanPosition(null);
     setIsDrawing(false);
     setIsErasing(false);
     setLastCell(null);
+    setIsDraggingViewport(false);
+    setLastDragPosition(null);
   };
 
   // Group consecutive cells of the same color in a row
@@ -212,6 +307,12 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     const hints = [];
     let currentCount = 0;
     let currentColor: string | null = null;
+
+    // Calculate visible range based on viewport offset and content offset
+    const cellWidth = zoom * 16; // Convert rem to pixels (1rem = 16px)
+    const effectiveOffsetX = viewportOffset.x + (contentOffset.x * cellWidth);
+    const visibleStartCol = Math.max(0, Math.floor(-effectiveOffsetX / cellWidth));
+    const visibleEndCol = Math.min(grid[row].length, Math.ceil((window.innerWidth - effectiveOffsetX) / cellWidth));
 
     for (let col = 0; col < grid[row].length; col++) {
       const cellColor = grid[row][col];
@@ -248,15 +349,24 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     let currentCount = 0;
     let currentColor: string | null = null;
 
+    // Calculate visible range based on viewport offset and content offset
+    const cellHeight = zoom * 16; // Convert rem to pixels (1rem = 16px)
+    const effectiveOffsetY = viewportOffset.y + (contentOffset.y * cellHeight);
+    const visibleStartRow = Math.max(0, Math.floor(-effectiveOffsetY / cellHeight));
+    const visibleEndRow = Math.min(grid.length, Math.ceil((window.innerHeight - effectiveOffsetY) / cellHeight));
+
     for (let row = 0; row < grid.length; row++) {
+      if (!grid[row] || col >= grid[row].length) continue;
+      
       const cellColor = grid[row][col];
-      if (!cellColor || cellColor === 'none') {
+      if (cellColor === 'none') {
         if (currentCount > 0 && currentColor) {
           hints.push({ count: currentCount, color: currentColor });
         }
         currentCount = 0;
         currentColor = null;
       } else {
+        // If color changes mid-stream, push what we had
         if (currentColor && cellColor !== currentColor) {
           hints.push({ count: currentCount, color: currentColor });
           currentCount = 0;
@@ -271,8 +381,22 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
       hints.push({ count: currentCount, color: currentColor });
     }
 
+    // If hints is empty, return [ {count: 0, color: 'black'} ]
     return hints.length ? hints : [{ count: 0, color: 'black' }];
   };
+
+  // Add useEffect to recalculate hints when viewport changes
+  useEffect(() => {
+    // Force a re-render to update hints
+    setShowHints(prev => {
+      if (prev) {
+        // Toggle off and on to force recalculation
+        setTimeout(() => setShowHints(true), 0);
+        return false;
+      }
+      return prev;
+    });
+  }, [viewportOffset]);
 
   const maxRowHints = showHints ? Math.max(1, ...Array.from({ length: currentPreset.height }, (_, i) => getRowHints(i).length)) : 0;
   const maxColHints = showHints ? Math.max(1, ...Array.from({ length: currentPreset.width }, (_, i) => getColumnHints(i).length)) : 0;
@@ -307,6 +431,94 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     return () => window.removeEventListener('wheel', preventScroll);
   }, []);
 
+  // Add keyboard shortcut to reset viewport position
+  useEffect(() => {
+    if (!shortcutsEnabled) return;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'r') {
+        setViewportOffset({ x: 0, y: 0 });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [shortcutsEnabled]);
+
+  // Update the shiftGridContent function with better fallbacks for undefined values
+  const shiftGridContent = (deltaX: number, deltaY: number) => {
+    // Ensure we have valid delta values
+    const dx = typeof deltaX === 'number' && !isNaN(deltaX) ? deltaX : 0;
+    const dy = typeof deltaY === 'number' && !isNaN(deltaY) ? deltaY : 0;
+    
+    // Exit early if there's no actual movement or no grid
+    if ((dx === 0 && dy === 0) || !grid || !onToggleMultipleCells || !Array.isArray(grid) || grid.length === 0) {
+      return;
+    }
+    
+    // Create array to track cell changes
+    const cellsToToggle: { row: number; col: number; color: string }[] = [];
+    
+    // Map to track cells we've already processed to avoid duplicates
+    const processedCells = new Map<string, boolean>();
+    
+    // First pass: collect all filled cells
+    const filledCells: { row: number; col: number; color: string }[] = [];
+    
+    for (let row = 0; row < grid.length; row++) {
+      const gridRow = grid[row];
+      if (!gridRow || !Array.isArray(gridRow)) continue;
+      
+      for (let col = 0; col < gridRow.length; col++) {
+        const cellColor = gridRow[col];
+        if (cellColor && cellColor !== 'none') {
+          filledCells.push({ row, col, color: cellColor });
+        }
+      }
+    }
+    
+    // Clear all filled cells first
+    filledCells.forEach(cell => {
+      cellsToToggle.push({ row: cell.row, col: cell.col, color: 'none' });
+    });
+    
+    // Then add cells at their new positions
+    filledCells.forEach(cell => {
+      const newRow = cell.row + dy;
+      const newCol = cell.col + dx;
+      
+      // Check if the new position is within bounds
+      if (newRow >= 0 && newRow < grid.length && 
+          newCol >= 0 && grid[0] && newCol < grid[0].length) {
+        
+        // Create a unique key for this cell to avoid duplicates
+        const cellKey = `${newRow},${newCol}`;
+        
+        // Only add if we haven't processed this cell yet
+        if (!processedCells.has(cellKey)) {
+          cellsToToggle.push({ 
+            row: newRow, 
+            col: newCol, 
+            color: cell.color 
+          });
+          processedCells.set(cellKey, true);
+        }
+      }
+    });
+    
+    // Apply all changes at once if there are any
+    if (cellsToToggle.length > 0) {
+      console.log('Applying cell changes:', cellsToToggle);
+      onToggleMultipleCells(cellsToToggle);
+      
+      // Force hint recalculation
+      if (showHints) {
+        setShowHints(false);
+        setTimeout(() => setShowHints(true), 10);
+      }
+    }
+  };
+
   return (
     <div 
       className={`
@@ -314,6 +526,8 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
         ${isPanning ? 'cursor-grabbing' : ''}
         ${isModifierPressed ? 'cursor-grab' : ''}
         ${isModifierPressed && isPanning ? 'cursor-grabbing' : ''}
+        ${isDraggingViewport ? 'cursor-move' : ''}
+        ${isDraggingContent ? 'cursor-all-scroll' : ''}
       `}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -337,6 +551,15 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
           style={{
             gridTemplateColumns: `repeat(${currentPreset.width + maxRowHints}, ${zoom}rem)`,
             gridTemplateRows: `repeat(${currentPreset.height + maxColHints}, ${zoom}rem)`,
+            transform: `translate(${viewportOffset.x}px, ${viewportOffset.y}px) translate(${contentOffset.x * zoom * 16}px, ${contentOffset.y * zoom * 16}px)`,
+            transition: isDraggingViewport || isDraggingContent ? 'none' : 'transform 0.1s ease-out'
+          }}
+          onMouseDown={(e) => {
+            // Prevent default to avoid text selection
+            e.preventDefault();
+            if (e.button === 2) {
+              e.preventDefault();
+            }
           }}
         >
           {Array.from({ length: currentPreset.height + maxColHints }).map((_, gridRow) => (

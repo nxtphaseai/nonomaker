@@ -13,6 +13,7 @@ import ColorPalette from './ColorPalette';
 import { ChevronLeft, ChevronRight, GripVertical, Pencil, Eraser, Droplet } from "lucide-react";
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Toaster } from "@/components/ui/toaster";
+import { ViewportControls } from './ViewportControls';
 
 // Add this interface after GridStates import
 interface UndoRedoState {
@@ -89,6 +90,9 @@ export const NonogramEditor: React.FC = () => {
 
   // Add this state declaration with the other state declarations
   const [selectedTool, setSelectedTool] = useState<Tool>('draw');
+
+  // Add state for content offset
+  const [contentOffset, setContentOffset] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
 
   // Define handlers before useEffect
   const handleUndo = useCallback(() => {
@@ -404,34 +408,53 @@ export const NonogramEditor: React.FC = () => {
     [selectedColor, selectedTool]
   );
 
-  const toggleMultipleCells = useCallback(
-    (cellsToToggle: [number, number][], newColor: string) => {
-      setExportUrl(null);
-      setUndoRedoState((currentState: any) => {
-        const currentGrid = currentState.present.gridStates[currentState.present.selectedPreset];
-        const newGrid = currentGrid.map((r: string[]) => [...r]);
-        
-        // Update all cells at once
-        for (const [row, col] of cellsToToggle) {
-          newGrid[row][col] = newColor;
-        }
+  const toggleMultipleCells = (cellsToToggle: { row: number; col: number; color: string }[]) => {
+    // Ensure cellsToToggle is an array
+    if (!Array.isArray(cellsToToggle) || cellsToToggle.length === 0) {
+      return; // Exit early if there's nothing to toggle
+    }
 
-        return {
-          past: [...currentState.past, currentState.present],
-          present: {
-            ...currentState.present,
-            gridStates: {
-              ...currentState.present.gridStates,
-              [currentState.present.selectedPreset]: newGrid
-            },
-            gridParams: currentState.present.gridParams || DEFAULT_GRID_PARAMS
-          },
-          future: []
-        };
-      });
-    },
-    []
-  );
+    // Create a deep copy of the current grid state
+    const currentGridState = undoRedoState.present.gridStates[undoRedoState.present.selectedPreset];
+    
+    // Ensure we have a valid grid to work with
+    if (!currentGridState || !Array.isArray(currentGridState) || currentGridState.length === 0) {
+      return; // Exit if grid is invalid
+    }
+    
+    const newGrid = currentGridState.map(row => [...row]);
+
+    // Process each cell to toggle with defensive checks
+    cellsToToggle.forEach(cell => {
+      // Ensure cell has valid row, col, and color properties
+      if (typeof cell.row !== 'number' || typeof cell.col !== 'number' || !cell.color) {
+        return; // Skip invalid cells
+      }
+      
+      // Ensure the row and column are within bounds
+      if (cell.row < 0 || cell.row >= newGrid.length || 
+          cell.col < 0 || !newGrid[cell.row] || cell.col >= newGrid[cell.row].length) {
+        return; // Skip out-of-bounds cells
+      }
+      
+      // Toggle the cell
+      newGrid[cell.row][cell.col] = cell.color;
+    });
+
+    // Update the state with the new grid
+    setUndoRedoState(prev => ({
+      past: [...prev.past, prev.present],
+      present: {
+        ...prev.present,
+        gridStates: {
+          ...prev.present.gridStates,
+          [prev.present.selectedPreset]: newGrid
+        },
+        gridParams: prev.present.gridParams || DEFAULT_GRID_PARAMS
+      },
+      future: []
+    }));
+  };
 
   const handleGenerate = async () => {
     if (!generationText.trim()) return;
@@ -823,6 +846,15 @@ export const NonogramEditor: React.FC = () => {
                   onZoomChange={setZoom}
                 />
 
+                <ViewportControls
+                  contentOffset={contentOffset || { x: 0, y: 0 }}
+                  onContentOffsetChange={(newOffset) => {
+                    if (newOffset && typeof newOffset.x === 'number' && typeof newOffset.y === 'number') {
+                      setContentOffset(newOffset);
+                    }
+                  }}
+                />
+
                 <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
                   <label className="text-sm font-medium">Tools:</label>
                   <div className="flex gap-2">
@@ -958,6 +990,12 @@ export const NonogramEditor: React.FC = () => {
               imageParams={undoRedoState.present.imageParams}
               onImageParamChange={handleImageParamChange}
               isRKeyPressed={isRKeyPressed}
+              contentOffset={contentOffset}
+              onContentOffsetChange={(newOffset) => {
+                if (newOffset && typeof newOffset.x === 'number' && typeof newOffset.y === 'number') {
+                  setContentOffset(newOffset);
+                }
+              }}
             />
           </div>
         </div>

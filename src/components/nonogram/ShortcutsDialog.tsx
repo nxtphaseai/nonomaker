@@ -23,7 +23,10 @@ const shortcuts: Shortcut[] = [
   { key: 'T', description: 'Toggle grid' },
   { key: 'H', description: 'Toggle hints' },
   { key: `${modifierKey}+↑↓←→`, description: 'Add row/column in direction' },
-  { key: `${modifierKey}+Shift+↑↓←→`, description: 'Remove row/column in direction' }
+  { key: `${modifierKey}+Shift+↑↓←→`, description: 'Remove row/column in direction' },
+  { key: 'Shift + Click and drag', description: 'Move grid content' },
+  { key: 'Arrow keys', description: 'Move grid content by one cell' },
+  { key: 'C', description: 'Center grid content' }
 ];
 
 export const ShortcutsDialog: React.FC = () => {
