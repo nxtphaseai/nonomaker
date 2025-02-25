@@ -14,8 +14,7 @@ export const ViewportControls: React.FC<ContentMoveControlsProps> = ({
   const safeOffset = contentOffset || { x: 0, y: 0 };
   
   const handleMove = (direction: 'up' | 'down' | 'left' | 'right') => {
-    // Provide fallbacks for undefined values
-    const step = 1; // Move by 1 cell at a time
+
     
     // Create a new object to avoid mutation
     let newOffset = { 

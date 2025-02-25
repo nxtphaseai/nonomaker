@@ -408,9 +408,9 @@ export const NonogramEditor: React.FC = () => {
     [selectedColor, selectedTool]
   );
 
-  const toggleMultipleCells = (cellsToToggle: { row: number; col: number; color: string }[]) => {
-    // Ensure cellsToToggle is an array
-    if (!Array.isArray(cellsToToggle) || cellsToToggle.length === 0) {
+  const toggleMultipleCells = (cells: { row: number; col: number; color?: string }[], color: string) => {
+    // Ensure cells is an array
+    if (!Array.isArray(cells) || cells.length === 0) {
       return; // Exit early if there's nothing to toggle
     }
 
@@ -425,9 +425,9 @@ export const NonogramEditor: React.FC = () => {
     const newGrid = currentGridState.map(row => [...row]);
 
     // Process each cell to toggle with defensive checks
-    cellsToToggle.forEach(cell => {
-      // Ensure cell has valid row, col, and color properties
-      if (typeof cell.row !== 'number' || typeof cell.col !== 'number' || !cell.color) {
+    cells.forEach(cell => {
+      // Ensure cell has valid row and col properties
+      if (typeof cell.row !== 'number' || typeof cell.col !== 'number') {
         return; // Skip invalid cells
       }
       
@@ -437,8 +437,8 @@ export const NonogramEditor: React.FC = () => {
         return; // Skip out-of-bounds cells
       }
       
-      // Toggle the cell
-      newGrid[cell.row][cell.col] = cell.color;
+      // Toggle the cell using either the cell's color or the provided color parameter
+      newGrid[cell.row][cell.col] = cell.color || color;
     });
 
     // Update the state with the new grid
@@ -984,7 +984,7 @@ export const NonogramEditor: React.FC = () => {
               processing={processing}
               shortcutsEnabled={!textareaFocused}
               onToggleCell={toggleCell}
-              onToggleMultipleCells={toggleMultipleCells}
+              onToggleMultipleCells={(cells) => toggleMultipleCells(cells, selectedColor)}
               selectedTool={selectedTool}
               selectedColor={selectedColor}
               imageParams={undoRedoState.present.imageParams}
