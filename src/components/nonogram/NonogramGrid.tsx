@@ -217,34 +217,79 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     setLastDragPosition({ x: e.clientX, y: e.clientY });
   };
 
-  // Modify handleMouseDown to include viewport dragging
-  const handleMouseDown = (row: number, col: number, e: React.MouseEvent) => {
-    if (e.altKey) { // Use Alt key for viewport movement
-      e.preventDefault();
-      setIsDraggingViewport(true);
-      setLastDragPosition({ x: e.clientX, y: e.clientY });
-      return;
-    }
-
-    if (isModifierKeyPressed(e) && grid.length > 0) {
-      e.preventDefault();
-      setIsPanning(true);
-      setLastPanPosition({ x: e.clientX, y: e.clientY });
-      return;
-    }
-
-    if (e.button === 0) {
-      if (selectedTool === 'fill') {
-        const targetColor = grid[row][col];
-        fillArea(col, row, targetColor, selectedColor);
-      } else {
-        setIsDrawing(true);
-        onToggleCell(row, col, selectedColor);
+  // Add this function to your NonogramGrid component
+  const fillCells = (startRow: number, startCol: number, targetColor: string, replacementColor: string) => {
+    if (targetColor === replacementColor) return;
+    if (!grid) return;
+    
+    // Create a copy of the grid to track changes
+    const newGrid = JSON.parse(JSON.stringify(grid));
+    
+    // Define a recursive flood fill function
+    const floodFill = (row: number, col: number) => {
+      // Check if we're out of bounds
+      if (
+        row < 0 || 
+        row >= newGrid.length || 
+        col < 0 || 
+        col >= newGrid[row].length
+      ) return;
+      
+      // Check if this cell is the target color
+      if (newGrid[row][col] !== targetColor) return;
+      
+      // Fill this cell
+      newGrid[row][col] = replacementColor;
+      
+      // Recursively fill adjacent cells
+      floodFill(row + 1, col); // down
+      floodFill(row - 1, col); // up
+      floodFill(row, col + 1); // right
+      floodFill(row, col - 1); // left
+    };
+    
+    // Start the flood fill
+    floodFill(startRow, startCol);
+    
+    // Apply all changes at once
+    if (onToggleMultipleCells) {
+      const cellsToToggle = [];
+      
+      for (let row = 0; row < newGrid.length; row++) {
+        for (let col = 0; col < newGrid[row].length; col++) {
+          if (newGrid[row][col] !== grid[row][col]) {
+            cellsToToggle.push({ row, col, color: newGrid[row][col] });
+          }
+        }
       }
-    } else if (e.button === 2) {
-      setIsErasing(true);
-      onToggleCell(row, col, 'none');
+      
+      onToggleMultipleCells(cellsToToggle);
     }
+  };
+
+  // Modify the handleMouseDown function to use the fill tool
+  const handleMouseDown = (row: number, col: number, e: React.MouseEvent) => {
+    if (e.button !== 0) return; // Only respond to left mouse button
+    
+    if (isPanning || isDraggingViewport) return;
+    
+    if (selectedTool === 'fill') {
+      // Get the color of the clicked cell
+      const targetColor = grid[row][col];
+      // Fill with the selected color
+      fillCells(row, col, targetColor, selectedColor);
+      return;
+    }
+    
+    // Existing drawing/erasing logic
+    if (selectedTool === 'draw') {
+      setIsDrawing(true);
+      onToggleCell?.(row, col, selectedColor);
+    } else if (selectedTool === 'erase') {
+      setIsErasing(true);
+      onToggleCell?.(row, col, 'none');
+    }
+    
     setLastCell({ row, col });
   };
 
