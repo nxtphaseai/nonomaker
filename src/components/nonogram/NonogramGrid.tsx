@@ -55,16 +55,13 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
   // Add state for content offset
   const [internalContentOffset, setInternalContentOffset] = useState({ x: 0, y: 0 });
   const [isDraggingContent, setIsDraggingContent] = useState(false);
-  const [lastContentDragPosition, setLastContentDragPosition] = useState<{ x: number, y: number } | null>(null);
   // Add a buffer state to store cells that move outside the viewport
   const [offScreenBuffer, setOffScreenBuffer] = useState<Map<string, string>>(new Map());
 
   // Use external state if provided, otherwise use internal state
   const contentOffset = externalContentOffset || internalContentOffset;
   
-  // Make sure previousContentOffset is initialized
-  const previousContentOffset = useRef<{ x: number, y: 0 }>({ x: 0, y: 0 });
-  
+
   // Update the useEffect that handles content offset changes
   useEffect(() => {
     if (!externalContentOffset) return;
@@ -199,7 +196,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     }
 
     // Update all cells at once
-    onToggleMultipleCells(cellsToFill, newColor);
+    onToggleMultipleCells(cellsToFill, selectedColor);
   };
 
   // Function to handle viewport movement
@@ -263,7 +260,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
         }
       }
       
-      onToggleMultipleCells(cellsToToggle);
+      onToggleMultipleCells(cellsToToggle, selectedColor);
     }
   };
 
@@ -272,6 +269,9 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     if (e.button !== 0) return; // Only respond to left mouse button
     
     if (isPanning || isDraggingViewport) return;
+    
+    // Set isDraggingContent to true when starting to interact with content
+    setIsDraggingContent(true);
     
     if (selectedTool === 'fill') {
       // Get the color of the clicked cell
@@ -335,6 +335,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     setLastCell(null);
     setIsDraggingViewport(false);
     setLastDragPosition(null);
+    setIsDraggingContent(false); // Reset when mouse is released
   };
 
   // Modify handleMouseLeave to include viewport dragging
@@ -346,6 +347,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     setLastCell(null);
     setIsDraggingViewport(false);
     setLastDragPosition(null);
+    setIsDraggingContent(false); // Reset when mouse leaves
   };
 
   // Group consecutive cells of the same color in a row
@@ -566,7 +568,7 @@ export const NonogramGrid: React.FC<NonogramGridProps> = ({
     
     // Apply all grid changes at once
     if (cellsToToggle.length > 0) {
-      onToggleMultipleCells(cellsToToggle);
+      onToggleMultipleCells(cellsToToggle, selectedColor);
       
       // Force hint recalculation
       if (showHints) {
